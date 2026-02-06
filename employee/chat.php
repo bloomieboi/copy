@@ -1,0 +1,99 @@
+<?php
+require_once __DIR__ . '/../function/connect.php';
+require_once __DIR__ . '/../function/auth.php';
+require_once __DIR__ . '/../function/helpers.php';
+session_start();
+requireRole(2);
+
+$orderId = $_GET['order_id'] ?? null;
+if (!$orderId) {
+    header("Location: index.php");
+    exit;
+}
+
+// Получаем заказ и клиента
+$stmt = $pdo->prepare("SELECT o.*, u.id_user AS client_id, u.login AS client_login
+                       FROM order_ o
+                       JOIN user_ u ON o.user_id = u.id_user
+                       WHERE o.order_id = ?");
+$stmt->execute([$orderId]);
+$order = $stmt->fetch();
+
+if (!$order) {
+    header("Location: index.php");
+    exit;
+}
+
+// Чат доступен только когда заказ в статусе «В работе» (id = 6)
+if ((int)$order['status_id'] !== 6) {
+    header("Location: order_detail.php?id=" . $orderId);
+    exit;
+}
+
+$clientId = (int)$order['client_id'];
+
+// Отправка сообщения
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['message'])) {
+    $text = trim($_POST['message']);
+    if ($text !== '') {
+        $stmt = $pdo->prepare("INSERT INTO message (order_id, from_user_id, to_user_id, message_text) VALUES (?, ?, ?, ?)");
+        $stmt->execute([$orderId, $_SESSION['user_id'], $clientId, $text]);
+        addOrderLog($orderId, $_SESSION['user_id'], 'message_sent', 'Сотрудник отправил сообщение клиенту');
+        header("Location: chat.php?order_id=" . $orderId);
+        exit;
+    }
+}
+
+// Сообщения по заказу
+$stmt = $pdo->prepare("SELECT m.*, u.login AS from_login 
+                       FROM message m 
+                       JOIN user_ u ON m.from_user_id = u.id_user
+                       WHERE m.order_id = ?
+                       ORDER BY m.created_at ASC");
+$stmt->execute([$orderId]);
+$messages = $stmt->fetchAll();
+
+// Помечаем как прочитанные
+$stmt = $pdo->prepare("UPDATE message SET is_read = 1 WHERE order_id = ? AND to_user_id = ?");
+$stmt->execute([$orderId, $_SESSION['user_id']]);
+
+$pageTitle = 'Чат по заказу #' . (int)$orderId . ' — КопиПейст';
+$baseUrl = '..';
+require_once __DIR__ . '/../function/layout_start.php';
+?>
+        <div class="chat-header">
+            <h2>Чат по заказу #<?= $orderId ?></h2>
+            <p>Клиент: <?= htmlspecialchars($order['client_login']) ?></p>
+            <a href="order_detail.php?id=<?= $orderId ?>" class="btn btn-sm btn-secondary">Детали заказа</a>
+        </div>
+        
+        <div class="chat-messages" id="chatMessages">
+            <?php if (empty($messages)): ?>
+                <div class="empty-chat">Пока нет сообщений.</div>
+            <?php else: ?>
+                <?php foreach($messages as $msg): ?>
+                    <div class="message <?= $msg['from_user_id'] == $_SESSION['user_id'] ? 'message-out' : 'message-in' ?>">
+                        <div class="message-header">
+                            <strong><?= htmlspecialchars($msg['from_login']) ?></strong>
+                            <span class="message-time"><?= formatDateTime($msg['created_at']) ?></span>
+                        </div>
+                        <div class="message-body">
+                            <?= nl2br(htmlspecialchars($msg['message_text'])) ?>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </div>
+        
+        <form method="POST" class="chat-form">
+            <div class="chat-input-group">
+                <textarea name="message" rows="3" placeholder="Введите сообщение..." required></textarea>
+                <button type="submit" class="btn btn-primary">Отправить</button>
+            </div>
+        </form>
+    <script>
+        const box = document.getElementById('chatMessages');
+        if (box) box.scrollTop = box.scrollHeight;
+    </script>
+<?php require_once __DIR__ . '/../function/layout_end.php'; ?>
+

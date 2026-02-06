@@ -1,0 +1,21 @@
+# Composer
+/vendor/
+
+# NPM / Vite
+/node_modules/
+/public/build/
+npm-debug.log*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env (если появятся)
+.env
+.env.local

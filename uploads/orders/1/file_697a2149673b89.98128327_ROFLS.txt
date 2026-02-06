@@ -1,0 +1,14 @@
+создать наследуемый класс от партнера PartnerDiscount : Partner
+получить партнеров и перебрать (foreach)
+получить историю реализации для каждого партнера ctx.partner_product.where(e => e.id.partner = id)
+public List <partprod> get pp (int id)
+foreach (part){foreach (partprod)}
+перебираем историю реализации (сложить все amount)
+проверяем amount и назначаем скидку
+list <PartnerDiscount> .add(partner, discount)
+
+
+
+
+
+ctx.Partner.Include (p => p.partprod).Select(p => new PartnerDiscount(p.Name, все поля, p.partprod.sum(pe.amount) < 10000 ? 0 :              < 30000 ? 5 : ).ToList();
