@@ -17,16 +17,6 @@ $totalOrders = $pdo->query("SELECT COUNT(*) AS c FROM order_")->fetch()['c'] ?? 
 $totalClients = $pdo->query("SELECT COUNT(*) AS c FROM user_ WHERE role_id = 1")->fetch()['c'] ?? 0;
 $totalEmployees = $pdo->query("SELECT COUNT(*) AS c FROM user_ WHERE role_id = 2")->fetch()['c'] ?? 0;
 
-// Последние действия (логи) админа
-$stmt = $pdo->prepare("SELECT l.*, o.order_id 
-                       FROM order_log l 
-                       JOIN order_ o ON l.order_id = o.order_id
-                       WHERE l.user_id = ?
-                       ORDER BY l.created_at DESC
-                       LIMIT 10");
-$stmt->execute([$userId]);
-$logs = $stmt->fetchAll();
-
 $pageTitle = 'Личный кабинет администратора — КопиПейст';
 $baseUrl = '..';
 require_once __DIR__ . '/../function/layout_start.php';
@@ -55,28 +45,4 @@ require_once __DIR__ . '/../function/layout_start.php';
             </div>
         </section>
 
-        <section class="orders-section">
-            <h3>Последние действия</h3>
-            <?php if (empty($logs)): ?>
-                <p class="empty-state">Журнал действий пуст.</p>
-            <?php else: ?>
-                <div class="logs-list">
-                    <?php foreach($logs as $log): ?>
-                        <div class="log-item">
-                            <div class="log-header">
-                                <strong>Заказ #<?= $log['order_id'] ?></strong>
-                                <span class="log-date"><?= formatDateTime($log['created_at']) ?></span>
-                            </div>
-                            <div class="log-body">
-                                <span class="log-type"><?= htmlspecialchars($log['action_type']) ?></span>
-                                <?php if ($log['action_description']): ?>
-                                    <p><?= htmlspecialchars($log['action_description']) ?></p>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-            <?php endif; ?>
-        </section>
 <?php require_once __DIR__ . '/../function/layout_end.php'; ?>
-
