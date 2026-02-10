@@ -90,16 +90,31 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && !$error) {
     }
     
     // Валидация количества (проверка пределов INT в MySQL)
-    $maxInt = 2147483647; // Максимальное значение INT в MySQL
+    $maxInt = 2147483647; // Максимальное значение INT в MySQL (2^31 - 1)
+    $maxQuantity = 1000000; // Разумный предел для количества услуг (1 миллион)
     
     if (!$error && (!$serviceList || $basePrice <= 0)) {
         $error = 'Заполните все поля корректно.';
-    } elseif (!$error && ($quantity <= 0 || $quantity > $maxInt)) {
-        $error = 'Количество должно быть от 1 до ' . number_format($maxInt, 0, '', ' ') . '.';
+    } elseif (!$error && $quantity <= 0) {
+        $error = 'Количество должно быть больше нуля.';
+    } elseif (!$error && $quantity > $maxQuantity) {
+        $error = 'Количество не может превышать ' . number_format($maxQuantity, 0, '', ' ') . ' единиц. Для больших заказов свяжитесь с администратором.';
+    } elseif (!$error && !is_numeric($quantity)) {
+        $error = 'Количество должно быть числом.';
     }
     
     if (!$error && $addressId <= 0) {
         $error = 'Необходимо выбрать адрес организации';
+    }
+    
+    // Проверка переполнения при расчете цены
+    if (!$error) {
+        $calculatedPrice = $basePrice * $quantity;
+        if ($calculatedPrice > PHP_FLOAT_MAX || !is_finite($calculatedPrice)) {
+            $error = 'Стоимость заказа превышает максимально допустимое значение. Уменьшите количество.';
+        } elseif ($calculatedPrice > $maxInt) {
+            $error = 'Стоимость заказа слишком велика. Максимальная сумма: ' . number_format($maxInt, 2, '.', ' ') . ' руб.';
+        }
     }
     
     if (!$error) {
@@ -256,9 +271,67 @@ require_once __DIR__ . '/../function/layout_start.php';
             </div>
             
                 <div class="form-actions">
-                    <button type="submit" name="submit_order" class="btn btn-primary">Оформить заказ</button>
-                    <a href="../index.php" class="btn btn-secondary">Отмена</a>
+                    <button type="submit" name="submit_order" class="btn btn-primary">
+                        <i class="bi bi-check-circle me-1"></i>
+                        Оформить заказ
+                    </button>
+                    <a href="../index.php" class="btn btn-secondary">
+                        <i class="bi bi-x-circle me-1"></i>
+                        Отмена
+                    </a>
                 </div>
             </form>
+            
+            <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const quantityInput = document.getElementById('quantity');
+                const basePriceInput = document.querySelector('input[name="base_price"]');
+                const totalHint = document.getElementById('order_total_hint');
+                
+                const MAX_QUANTITY = 1000000; // 1 миллион
+                const MAX_PRICE = 2147483647; // INT макс MySQL
+                
+                // Валидация количества в реальном времени
+                function validateQuantity() {
+                    const quantity = parseInt(quantityInput.value) || 0;
+                    const basePrice = parseFloat(basePriceInput.value) || 0;
+                    
+                    // Проверка количества
+                    if (quantity <= 0) {
+                        quantityInput.setCustomValidity('Количество должно быть больше нуля');
+                        return false;
+                    } else if (quantity > MAX_QUANTITY) {
+                        quantityInput.setCustomValidity('Количество не может превышать 1 000 000 ед.');
+                        return false;
+                    }
+                    
+                    // Проверка стоимости
+                    const totalPrice = basePrice * quantity;
+                    if (totalPrice > MAX_PRICE) {
+                        quantityInput.setCustomValidity('Стоимость заказа превышает максимум (2 147 483 647 руб.). Уменьшите количество.');
+                        return false;
+                    }
+                    
+                    quantityInput.setCustomValidity('');
+                    
+                    // Обновляем подсказку с итоговой суммой
+                    if (totalHint) {
+                        const formattedPrice = totalPrice.toLocaleString('ru-RU', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        });
+                        totalHint.innerHTML = '<strong>Итоговая сумма:</strong> ' + formattedPrice + ' руб. <small>(до применения бонусов)</small>';
+                    }
+                    
+                    return true;
+                }
+                
+                quantityInput.addEventListener('input', validateQuantity);
+                quantityInput.addEventListener('blur', validateQuantity);
+                
+                // Начальная валидация
+                validateQuantity();
+            });
+            </script>
         <?php endif; ?>
 <?php require_once __DIR__ . '/../function/layout_end.php'; ?>
