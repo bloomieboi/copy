@@ -52,7 +52,8 @@ $pageTitle = 'Управление адресами — КопиПейст';
 $baseUrl = '..';
 require_once __DIR__ . '/../function/layout_start.php';
 ?>
-        <h2>Управление адресами</h2>
+        <h2>Управление адресами организации</h2>
+        <p class="form-hint">Адреса точек обслуживания копицентра, где клиенты могут получить услуги.</p>
         
         <?php if ($success): ?>
             <div class="alert alert-success"><?= $success ?></div>
@@ -70,8 +71,8 @@ require_once __DIR__ . '/../function/layout_start.php';
                 <?php endif; ?>
                 
                 <div class="form-group">
-                    <label for="address_name">Название адреса:</label>
-                    <input type="text" name="address_name" id="address_name" value="<?= htmlspecialchars($editAddress['address_name'] ?? '') ?>" required>
+                    <label for="address_name">Адрес организации:</label>
+                    <input type="text" name="address_name" id="address_name" value="<?= htmlspecialchars($editAddress['address_name'] ?? '') ?>" required placeholder="Например: г. Москва, ул. Ленина, 10">
                 </div>
                 
                 <div class="form-actions">

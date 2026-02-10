@@ -90,12 +90,10 @@ $baseUrl = '..';
                     <th>Услуга</th>
                     <td><?= htmlspecialchars($order['service_list']) ?></td>
                 </tr>
-                <?php if ($address): ?>
                 <tr>
-                    <th>Адрес</th>
-                    <td><?= htmlspecialchars($address['address_name']) ?></td>
+                    <th>Адрес организации</th>
+                    <td><?= htmlspecialchars($address['address_name'] ?? 'Не указан') ?></td>
                 </tr>
-                <?php endif; ?>
                 <tr>
                     <th>Способ оплаты</th>
                     <td>Оплата по карте в приложении</td>

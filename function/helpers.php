@@ -1,20 +1,46 @@
 <?php
 /**
- * Вспомогательные функции для работы с новой схемой БД
+ * Вспомогательные функции (PHP 8.2+)
  */
 
-function formatPrice($price) {
+declare(strict_types=1);
+
+/**
+ * Форматирование цены
+ */
+function formatPrice(float|int $price): string
+{
     return number_format($price, 2, '.', ' ') . ' руб.';
 }
 
-function formatDate($date) {
+/**
+ * Форматирование даты
+ */
+function formatDate(?string $date): string
+{
     if (!$date) return '-';
-    return date('d.m.Y', strtotime($date));
+    
+    try {
+        $dt = new DateTime($date);
+        return $dt->format('d.m.Y');
+    } catch (Exception) {
+        return '-';
+    }
 }
 
-function formatDateTime($datetime) {
+/**
+ * Форматирование даты и времени
+ */
+function formatDateTime(?string $datetime): string
+{
     if (!$datetime) return '-';
-    return date('d.m.Y H:i', strtotime($datetime));
+    
+    try {
+        $dt = new DateTime($datetime);
+        return $dt->format('d.m.Y H:i');
+    } catch (Exception) {
+        return '-';
+    }
 }
 
 function getStatusBadgeClass($statusId) {

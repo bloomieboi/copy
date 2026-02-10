@@ -24,6 +24,15 @@ if (!$order) {
     exit;
 }
 
+// Проверяем, является ли текущий сотрудник исполнителем этого заказа
+$isExecutor = ($order['executor_id'] && (int)$order['executor_id'] === (int)$_SESSION['user_id']);
+
+if (!$isExecutor) {
+    // Только исполнитель может общаться в чате
+    header("Location: order_detail.php?id=" . $orderId);
+    exit;
+}
+
 // Чат доступен только когда заказ в статусе «В работе» (id = 6)
 if ((int)$order['status_id'] !== 6) {
     header("Location: order_detail.php?id=" . $orderId);
@@ -67,9 +76,20 @@ require_once __DIR__ . '/../function/layout_start.php';
             <a href="order_detail.php?id=<?= $orderId ?>" class="btn btn-sm btn-secondary">Детали заказа</a>
         </div>
         
+        <?php if (empty($messages)): ?>
+        <div class="alert alert-info mb-3" role="alert">
+            <i class="bi bi-info-circle me-2"></i>
+            <strong>Вы можете начать чат с клиентом.</strong><br>
+            Напишите первое сообщение, чтобы начать общение по заказу. Клиент сможет ответить после вашего сообщения.
+        </div>
+        <?php endif; ?>
+        
         <div class="chat-messages" id="chatMessages">
             <?php if (empty($messages)): ?>
-                <div class="empty-chat">Пока нет сообщений.</div>
+                <div class="empty-chat">
+                    <i class="bi bi-chat-dots" style="font-size: 3rem; opacity: 0.3;"></i>
+                    <p class="mt-2" style="opacity: 0.6;">Напишите первое сообщение ниже</p>
+                </div>
             <?php else: ?>
                 <?php foreach($messages as $msg): ?>
                     <div class="message <?= $msg['from_user_id'] == $_SESSION['user_id'] ? 'message-out' : 'message-in' ?>">
@@ -87,8 +107,14 @@ require_once __DIR__ . '/../function/layout_start.php';
         
         <form method="POST" class="chat-form">
             <div class="chat-input-group">
-                <textarea name="message" rows="3" placeholder="Введите сообщение..." required></textarea>
-                <button type="submit" class="btn btn-primary">Отправить</button>
+                <textarea name="message" 
+                          rows="3" 
+                          placeholder="<?= empty($messages) ? 'Напишите первое сообщение клиенту...' : 'Введите сообщение...' ?>" 
+                          required></textarea>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-send me-1"></i>
+                    <?= empty($messages) ? 'Начать чат' : 'Отправить' ?>
+                </button>
             </div>
         </form>
     <script>

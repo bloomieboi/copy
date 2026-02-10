@@ -11,9 +11,20 @@ requireRole(3);
 
 $success = '';
 $error = '';
+$tableExists = false;
+
+// Проверяем наличие таблицы
+try {
+    $pdo->query("SELECT 1 FROM locations LIMIT 1");
+    $tableExists = true;
+} catch (PDOException $e) {
+    if ($e->getCode() === '42S02') {
+        $error = 'Таблица locations не найдена в базе данных. Выполните SQL-скрипт: database/additional_tables.sql';
+    }
+}
 
 // Создание/редактирование локации
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && $tableExists) {
     $locationId = $_POST['location_id'] ?? null;
     $locationName = trim($_POST['location_name']);
     $address = trim($_POST['address']);
@@ -36,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 }
 
 // Удаление локации
-if (isset($_GET['delete'])) {
+if (isset($_GET['delete']) && $tableExists) {
     $locationId = intval($_GET['delete']);
     $stmt = $pdo->prepare("UPDATE locations SET is_active = FALSE WHERE location_id = ?");
     $stmt->execute([$locationId]);
@@ -44,11 +55,18 @@ if (isset($_GET['delete'])) {
 }
 
 // Получаем локации
-$locations = $pdo->query("SELECT * FROM locations ORDER BY location_name")->fetchAll();
+$locations = [];
+if ($tableExists) {
+    try {
+        $locations = $pdo->query("SELECT * FROM locations ORDER BY location_name")->fetchAll();
+    } catch (PDOException $e) {
+        $error = 'Ошибка загрузки локаций: ' . $e->getMessage();
+    }
+}
 
 // Редактирование локации
 $editLocation = null;
-if (isset($_GET['edit'])) {
+if (isset($_GET['edit']) && $tableExists) {
     $locationId = intval($_GET['edit']);
     $stmt = $pdo->prepare("SELECT * FROM locations WHERE location_id = ?");
     $stmt->execute([$locationId]);
@@ -63,13 +81,35 @@ require_once __DIR__ . '/../function/layout_start.php';
         <p class="form-hint">Список всех точек обслуживания (копицентров). Выберите точку для редактирования прайс-листа или данных.</p>
         
         <?php if ($success): ?>
-            <div class="alert alert-success"><?= $success ?></div>
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="bi bi-check-circle-fill me-2"></i>
+                <?= htmlspecialchars($success) ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
         <?php endif; ?>
         
         <?php if ($error): ?>
-            <div class="alert alert-error"><?= $error ?></div>
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <strong>Ошибка!</strong> <?= htmlspecialchars($error) ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                
+                <?php if (strpos($error, 'additional_tables.sql') !== false): ?>
+                <hr>
+                <h6 class="alert-heading mt-3">Инструкция по устранению:</h6>
+                <ol class="mb-0 small">
+                    <li>Откройте phpMyAdmin (обычно <a href="http://localhost/openserver/?panel" target="_blank">http://localhost/openserver/?panel</a>)</li>
+                    <li>Выберите базу данных <code>copypasteDB</code></li>
+                    <li>Перейдите в раздел "SQL"</li>
+                    <li>Откройте файл <code>database/additional_tables.sql</code> и скопируйте его содержимое</li>
+                    <li>Вставьте скрипт в поле SQL и нажмите "Пошел" (или "Go")</li>
+                    <li>Обновите эту страницу</li>
+                </ol>
+                <?php endif; ?>
+            </div>
         <?php endif; ?>
         
+        <?php if ($tableExists): ?>
         <section class="location-form-section">
             <h3><?= $editLocation ? 'Редактирование локации' : 'Создание новой локации' ?></h3>
             <form method="POST" class="location-form">
@@ -142,7 +182,14 @@ require_once __DIR__ . '/../function/layout_start.php';
             </table>
         </section>
         
+        <?php endif; ?>
+        
         <div class="actions">
-            <a href="index.php" class="btn btn-secondary">Назад</a>
+            <a href="index.php" class="btn btn-secondary">
+                <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/>
+                </svg>
+                Назад
+            </a>
         </div>
 <?php require_once __DIR__ . '/../function/layout_end.php'; ?>

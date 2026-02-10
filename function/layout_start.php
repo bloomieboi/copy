@@ -14,6 +14,7 @@ $base = $baseUrl !== '' ? rtrim($baseUrl, '/') . '/' : '';
     <title><?= htmlspecialchars($pageTitle ?? 'КопиПейст') ?></title>
     <?php require_once __DIR__ . '/layout_head.php'; ?>
     <link rel="stylesheet" href="<?= $base ?>css/style.css">
+    <link rel="stylesheet" href="<?= $base ?>css/components.css">
 </head>
 <body class="site-body d-flex flex-column min-vh-100">
     <header class="site-header navbar navbar-expand-lg navbar-dark bg-primary">

@@ -27,28 +27,31 @@ if ((int)$order['status_id'] !== 6) {
     exit;
 }
 
-// Определяем собеседника: первый сотрудник, иначе первый админ
-$stmt = $pdo->query("SELECT id_user FROM user_ WHERE role_id = 2 ORDER BY id_user LIMIT 1");
-$partner = $stmt->fetch();
-if (!$partner) {
-    $stmt = $pdo->query("SELECT id_user FROM user_ WHERE role_id = 3 ORDER BY id_user LIMIT 1");
-    $partner = $stmt->fetch();
-}
-$partnerId = $partner ? (int)$partner['id_user'] : null;
+// Проверяем, есть ли уже сообщения в чате
+$stmt = $pdo->prepare("SELECT COUNT(*) as count FROM message WHERE order_id = ?");
+$stmt->execute([$orderId]);
+$messageCount = (int)$stmt->fetch()['count'];
 
-// Если уже есть сообщения, используем фактического собеседника
-$stmt = $pdo->prepare("SELECT DISTINCT 
-                          CASE 
-                            WHEN from_user_id = ? THEN to_user_id 
-                            ELSE from_user_id 
-                          END AS other_id
-                       FROM message
-                       WHERE order_id = ? AND (from_user_id = ? OR to_user_id = ?)
-                       LIMIT 1");
-$stmt->execute([$_SESSION['user_id'], $orderId, $_SESSION['user_id'], $_SESSION['user_id']]);
-$existing = $stmt->fetch();
-if ($existing) {
-    $partnerId = (int)$existing['other_id'];
+// Чат может начать только сотрудник!
+$chatStarted = $messageCount > 0;
+
+// Определяем собеседника (сотрудника)
+$partnerId = null;
+if ($chatStarted) {
+    // Если чат уже начат, находим сотрудника
+    $stmt = $pdo->prepare("SELECT DISTINCT 
+                              CASE 
+                                WHEN from_user_id = ? THEN to_user_id 
+                                ELSE from_user_id 
+                              END AS other_id
+                           FROM message
+                           WHERE order_id = ? AND (from_user_id = ? OR to_user_id = ?)
+                           LIMIT 1");
+    $stmt->execute([$_SESSION['user_id'], $orderId, $_SESSION['user_id'], $_SESSION['user_id']]);
+    $existing = $stmt->fetch();
+    if ($existing) {
+        $partnerId = (int)$existing['other_id'];
+    }
 }
 
 // Отправка сообщения
@@ -86,8 +89,14 @@ require_once __DIR__ . '/../function/layout_start.php';
         </div>
         
         <div class="chat-messages" id="chatMessages">
-            <?php if (empty($messages)): ?>
-                <div class="empty-chat">Пока нет сообщений. Начните общение.</div>
+            <?php if (!$chatStarted): ?>
+                <div class="alert alert-warning" role="alert">
+                    <i class="bi bi-chat-left-dots me-2"></i>
+                    <strong>Чат еще не начат.</strong><br>
+                    Сотрудник, обрабатывающий ваш заказ, свяжется с вами в чате при необходимости.
+                </div>
+            <?php elseif (empty($messages)): ?>
+                <div class="empty-chat">Пока нет сообщений.</div>
             <?php else: ?>
                 <?php foreach($messages as $msg): ?>
                     <div class="message <?= $msg['from_user_id'] == $_SESSION['user_id'] ? 'message-out' : 'message-in' ?>">
@@ -103,15 +112,26 @@ require_once __DIR__ . '/../function/layout_start.php';
             <?php endif; ?>
         </div>
         
-        <?php if ($partnerId): ?>
+        <?php if ($chatStarted && $partnerId): ?>
         <form method="POST" class="chat-form">
             <div class="chat-input-group">
                 <textarea name="message" rows="3" placeholder="Введите сообщение..." required></textarea>
-                <button type="submit" class="btn btn-primary">Отправить</button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-send me-1"></i>
+                    Отправить
+                </button>
             </div>
         </form>
+        <?php elseif (!$chatStarted): ?>
+            <div class="alert alert-info mt-3" role="alert">
+                <i class="bi bi-info-circle me-2"></i>
+                Чат будет доступен, когда сотрудник начнет обработку вашего заказа и напишет первое сообщение.
+            </div>
         <?php else: ?>
-            <p>Нет доступных сотрудников/администраторов для чата.</p>
+            <div class="alert alert-danger mt-3" role="alert">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                Не удалось найти сотрудника для чата. Обратитесь к администратору.
+            </div>
         <?php endif; ?>
     <script>
         const box = document.getElementById('chatMessages');

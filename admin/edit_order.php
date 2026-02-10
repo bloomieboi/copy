@@ -114,9 +114,9 @@ require_once __DIR__ . '/../function/layout_start.php';
             </div>
             
             <div class="form-group">
-                <label for="address_id">Адрес (необязательно):</label>
-                <select name="address_id" id="address_id">
-                    <option value="">Не выбран</option>
+                <label for="address_id">Адрес организации (обязательно):</label>
+                <select name="address_id" id="address_id" required>
+                    <option value="">Выберите адрес</option>
                     <?php foreach($addresses as $addr): ?>
                         <option value="<?= $addr['address_id'] ?>" <?= ($currentAddress && $currentAddress['address_id'] == $addr['address_id']) ? 'selected' : '' ?>>
                             <?= htmlspecialchars($addr['address_name']) ?>

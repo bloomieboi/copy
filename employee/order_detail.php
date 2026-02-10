@@ -18,6 +18,31 @@ if (!$orderId) {
 
 $statusError = '';
 $employeeCommentDisplay = null; // при ошибке валидации подставляем введённый текст
+$takeSuccess = '';
+
+// Обработка взятия заказа в работу
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['take_order'])) {
+    // Проверяем, что заказ в статусе "Оплачен" (2)
+    $stmt = $pdo->prepare("SELECT status_id, executor_id FROM order_ WHERE order_id = ?");
+    $stmt->execute([$orderId]);
+    $currentOrder = $stmt->fetch();
+    
+    if ($currentOrder && (int)$currentOrder['status_id'] === 2) {
+        // Назначаем текущего сотрудника исполнителем и переводим в статус "В работе" (6)
+        $stmt = $pdo->prepare("UPDATE order_ SET status_id = 6, executor_id = ? WHERE order_id = ?");
+        $stmt->execute([$_SESSION['user_id'], $orderId]);
+        addOrderLog($orderId, $_SESSION['user_id'], 'order_taken', 'Сотрудник взял заказ в работу');
+        $takeSuccess = 'Заказ успешно взят в работу!';
+        header("Location: order_detail.php?id=" . $orderId . "&taken=1");
+        exit;
+    } else {
+        $statusError = 'Заказ не может быть взят в работу (неверный статус)';
+    }
+}
+
+if (isset($_GET['taken'])) {
+    $takeSuccess = 'Заказ успешно взят в работу!';
+}
 
 // Обработка сохранения статуса и комментария сотрудника
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['status_id']) && !isset($_FILES['order_file'])) {
@@ -65,10 +90,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['status_id']) && !isse
 }
 
 // Получаем информацию о заказе
-$stmt = $pdo->prepare("SELECT o.*, s.status_name, s.status_id, u.login as client_login, u.phone_number as client_phone
+$stmt = $pdo->prepare("SELECT o.*, s.status_name, s.status_id, u.login as client_login, u.phone_number as client_phone,
+                              e.login as executor_login
                        FROM order_ o 
                        JOIN status s ON o.status_id = s.status_id 
                        JOIN user_ u ON o.user_id = u.id_user
+                       LEFT JOIN user_ e ON o.executor_id = e.id_user
                        WHERE o.order_id = ?");
 $stmt->execute([$orderId]);
 $order = $stmt->fetch();
@@ -77,6 +104,10 @@ if (!$order) {
     header("Location: index.php");
     exit;
 }
+
+// Проверяем, является ли текущий сотрудник исполнителем
+$isExecutor = ($order['executor_id'] && (int)$order['executor_id'] === (int)$_SESSION['user_id']);
+$canTakeOrder = ((int)$order['status_id'] === 2 && !$order['executor_id']);}
 
 // Получаем адрес заказа
 $stmt = $pdo->prepare("SELECT a.address_name FROM order_address oa 
@@ -131,8 +162,38 @@ require_once __DIR__ . '/../function/layout_start.php';
 ?>
         <h2>Детали заказа #<?= $orderId ?></h2>
         
+        <?php if ($takeSuccess): ?>
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="bi bi-check-circle-fill me-2"></i>
+                <strong>Успех!</strong> <?= htmlspecialchars($takeSuccess) ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        <?php endif; ?>
+        
         <?php if ($statusError): ?>
-            <div class="alert alert-error"><?= htmlspecialchars($statusError) ?></div>
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <strong>Ошибка!</strong> <?= htmlspecialchars($statusError) ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        <?php endif; ?>
+        
+        <?php if ($canTakeOrder): ?>
+            <div class="alert alert-info" role="alert">
+                <i class="bi bi-info-circle me-2"></i>
+                <strong>Заказ готов к выполнению.</strong> Вы можете взять его в работу.
+            </div>
+            <form method="POST" class="mb-3">
+                <button type="submit" name="take_order" class="btn btn-success btn-lg">
+                    <i class="bi bi-hand-thumbs-up me-2"></i>
+                    Взять заказ в работу
+                </button>
+            </form>
+        <?php elseif ($order['executor_id'] && !$isExecutor): ?>
+            <div class="alert alert-warning" role="alert">
+                <i class="bi bi-person-fill me-2"></i>
+                <strong>Заказ в работе у другого сотрудника:</strong> <?= htmlspecialchars($order['executor_login']) ?>
+            </div>
         <?php endif; ?>
         
         <div class="order-detail">
@@ -151,18 +212,27 @@ require_once __DIR__ . '/../function/layout_start.php';
                         <th>Клиент:</th>
                         <td><?= htmlspecialchars($order['client_login']) ?></td>
                     </tr>
+                    <?php if ($order['executor_id']): ?>
+                    <tr>
+                        <th>Исполнитель:</th>
+                        <td>
+                            <?= htmlspecialchars($order['executor_login']) ?>
+                            <?php if ($isExecutor): ?>
+                                <span class="badge bg-success ms-2">Вы</span>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                    <?php endif; ?>
                     <?php if ($order['client_phone']): ?>
                     <tr>
                         <th>Телефон клиента:</th>
                         <td><?= htmlspecialchars($order['client_phone']) ?></td>
                     </tr>
                     <?php endif; ?>
-                    <?php if ($address): ?>
                     <tr>
-                        <th>Адрес:</th>
-                        <td><?= htmlspecialchars($address['address_name']) ?></td>
+                        <th>Адрес организации:</th>
+                        <td><?= htmlspecialchars($address['address_name'] ?? 'Не указан') ?></td>
                     </tr>
-                    <?php endif; ?>
                     <tr>
                         <th>Стоимость:</th>
                         <td class="price"><?= formatPrice($order['price']) ?></td>
@@ -174,7 +244,7 @@ require_once __DIR__ . '/../function/layout_start.php';
                 </table>
             </div>
             
-            <?php if ((int)$order['status_id'] === 6): ?>
+            <?php if ($isExecutor && (int)$order['status_id'] === 6): ?>
             <div class="detail-section">
                 <h3>Работа с заявкой</h3>
                 <p class="form-hint">Внесите результаты работ в поле «Комментарий сотрудника». Вы можете изменить статус заказа на «Завершен» или «Отменен». Комментарий обязателен.</p>
@@ -233,7 +303,15 @@ require_once __DIR__ . '/../function/layout_start.php';
         </div>
         
         <div class="actions">
-            <a href="index.php" class="btn btn-secondary">Назад к заказам</a>
-            <a href="chat.php?order_id=<?= $orderId ?>" class="btn btn-primary">Чат с клиентом</a>
+            <a href="index.php" class="btn btn-secondary">
+                <i class="bi bi-arrow-left me-1"></i>
+                Назад к заказам
+            </a>
+            <?php if ($isExecutor && (int)$order['status_id'] === 6): ?>
+                <a href="chat.php?order_id=<?= $orderId ?>" class="btn btn-primary">
+                    <i class="bi bi-chat-dots me-1"></i>
+                    Чат с клиентом
+                </a>
+            <?php endif; ?>
         </div>
 <?php require_once __DIR__ . '/../function/layout_end.php'; ?>

@@ -125,12 +125,10 @@ require_once __DIR__ . '/../function/layout_start.php';
                         <td><?= htmlspecialchars($order['client_phone']) ?></td>
                     </tr>
                     <?php endif; ?>
-                    <?php if ($address): ?>
                     <tr>
-                        <th>Адрес:</th>
-                        <td><?= htmlspecialchars($address['address_name']) ?></td>
+                        <th>Адрес организации:</th>
+                        <td><?= htmlspecialchars($address['address_name'] ?? 'Не указан') ?></td>
                     </tr>
-                    <?php endif; ?>
                     <tr>
                         <th>Стоимость:</th>
                         <td class="price"><?= formatPrice($order['price']) ?></td>

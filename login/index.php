@@ -26,9 +26,36 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $stmt->execute([$login]);
         $user = $stmt->fetch();
 
-        // Проверяем подлинность данных: существует ли пользователь и совпадает ли пароль
-        if ($user && sha1($password) === $user['password']) {
-            // Подтверждаем подлинность данных и предоставляем доступ к персональному функционалу
+        // Проверяем подлинность данных
+        $passwordValid = false;
+        
+        if ($user) {
+            // Поддержка обратной совместимости: старые SHA1 и новые password_hash
+            if (strlen($user['password']) === 40) {
+                // Старый SHA1 хеш (40 символов)
+                $passwordValid = (sha1($password) === $user['password']);
+                
+                // Автоматическое обновление на безопасный хеш
+                if ($passwordValid) {
+                    $newHash = password_hash($password, PASSWORD_DEFAULT);
+                    $stmt = $pdo->prepare("UPDATE user_ SET password = ? WHERE id_user = ?");
+                    $stmt->execute([$newHash, $user['id_user']]);
+                }
+            } else {
+                // Новый password_hash
+                $passwordValid = password_verify($password, $user['password']);
+                
+                // Проверяем, нужно ли перехеширование
+                if ($passwordValid && password_needs_rehash($user['password'], PASSWORD_DEFAULT)) {
+                    $newHash = password_hash($password, PASSWORD_DEFAULT);
+                    $stmt = $pdo->prepare("UPDATE user_ SET password = ? WHERE id_user = ?");
+                    $stmt->execute([$newHash, $user['id_user']]);
+                }
+            }
+        }
+
+        if ($passwordValid) {
+            // Подтверждаем подлинность данных и предоставляем доступ
             $_SESSION['user_id'] = $user['id_user'];
             $_SESSION['role_id'] = $user['role_id'];
             header("Location: ../index.php");

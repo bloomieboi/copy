@@ -169,9 +169,7 @@ require_once __DIR__ . '/../function/layout_start.php';
                             
                             <div class="order-body">
                                 <p><strong>Услуга:</strong> <?= htmlspecialchars($order['service_list']) ?></p>
-                                <?php if ($orderAddresses[$order['order_id']]): ?>
-                                    <p><strong>Адрес:</strong> <?= htmlspecialchars($orderAddresses[$order['order_id']]) ?></p>
-                                <?php endif; ?>
+                                <p><strong>Адрес организации:</strong> <?= htmlspecialchars($orderAddresses[$order['order_id']] ?? 'Не указан') ?></p>
                                 <p><strong>Создан:</strong> <?= formatDateTime($order['created_date']) ?></p>
                             </div>
                             

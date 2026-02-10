@@ -87,7 +87,7 @@ require_once __DIR__ . '/../function/layout_start.php';
                         <td><?= $order['order_id'] ?></td>
                         <td><?= htmlspecialchars($order['client_login']) ?></td>
                         <td><?= htmlspecialchars($order['service_list']) ?></td>
-                        <td><?= htmlspecialchars($orderAddresses[$order['order_id']] ?? '-') ?></td>
+                        <td><?= htmlspecialchars($orderAddresses[$order['order_id']] ?? 'Не указан') ?></td>
                         <td><span class="status-badge <?= getStatusBadgeClass($order['status_id']) ?>"><?= htmlspecialchars($order['status_name']) ?></span></td>
                         <td><?= formatPrice($order['price']) ?></td>
                         <td><?= formatDate($order['created_date']) ?></td>
