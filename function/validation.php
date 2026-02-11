@@ -195,3 +195,27 @@ function validateUserData(array $data, PDO $pdo, ?int $excludeUserId = null): ar
     
     return $errors;
 }
+
+/**
+ * Валидация скидочной карты
+ * @param PDO $pdo
+ * @param string $cardCode
+ * @return array ['valid' => bool, 'error' => string|null, 'discount' => int|null]
+ */
+function validateDiscountCard(PDO $pdo, string $cardCode): array
+{
+    $cardCode = trim($cardCode);
+    if (empty($cardCode)) {
+        return ['valid' => false, 'error' => 'Код карты не может быть пустым'];
+    }
+
+    $stmt = $pdo->prepare("SELECT discount_percentage FROM discount_cards WHERE card_code = ? AND is_active = 1 AND (valid_until IS NULL OR valid_until >= CURDATE())");
+    $stmt->execute([$cardCode]);
+    $card = $stmt->fetch();
+
+    if (!$card) {
+        return ['valid' => false, 'error' => 'Скидочная карта недействительна или не найдена'];
+    }
+
+    return ['valid' => true, 'error' => null, 'discount' => (int)$card['discount_percentage']];
+}
