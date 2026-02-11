@@ -40,11 +40,12 @@ $orders = $stmt->fetchAll();
 // Получаем статусы для фильтра
 $statuses = $pdo->query("SELECT * FROM status ORDER BY status_id")->fetchAll();
 
-// Получаем адреса заказов
+// Получаем адреса заказов (точки обслуживания)
 $orderAddresses = [];
 foreach ($orders as $order) {
-    $stmt = $pdo->prepare("SELECT a.address_name FROM order_address oa 
-                          JOIN address a ON oa.address_id = a.address_id 
+    $stmt = $pdo->prepare("SELECT CONCAT(l.location_name, ' - ', l.address) as address_name 
+                          FROM order_address oa 
+                          JOIN locations l ON oa.address_id = l.location_id 
                           WHERE oa.order_id = ?");
     $stmt->execute([$order['order_id']]);
     $addr = $stmt->fetch();

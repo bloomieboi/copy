@@ -109,9 +109,10 @@ if (!$order) {
 $isExecutor = ($order['executor_id'] && (int)$order['executor_id'] === (int)$_SESSION['user_id']);
 $canTakeOrder = ((int)$order['status_id'] === 2 && !$order['executor_id']);}
 
-// Получаем адрес заказа
-$stmt = $pdo->prepare("SELECT a.address_name FROM order_address oa 
-                       JOIN address a ON oa.address_id = a.address_id 
+// Получаем адрес заказа (точку обслуживания)
+$stmt = $pdo->prepare("SELECT CONCAT(l.location_name, ' - ', l.address) as address_name 
+                       FROM order_address oa 
+                       JOIN locations l ON oa.address_id = l.location_id 
                        WHERE oa.order_id = ?");
 $stmt->execute([$orderId]);
 $address = $stmt->fetch();

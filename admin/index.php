@@ -78,16 +78,21 @@ require_once __DIR__ . '/../function/layout_start.php';
             </div>
             
             <div class="admin-section">
-                <h3>Точки обслуживания</h3>
+                <h3>Точки обслуживания и адреса</h3>
                 <div class="section-links">
-                    <a href="locations.php" class="section-link">Все точки обслуживания</a>
+                    <a href="locations.php" class="section-link">
+                        <i class="bi bi-geo-alt-fill me-1"></i>
+                        Управление точками обслуживания
+                    </a>
                 </div>
             </div>
             <div class="admin-section">
                 <h3>Настройки</h3>
                 <div class="section-links">
-                    <a href="addresses.php" class="section-link">Адреса</a>
-                    <a href="services.php" class="section-link">Услуги и прайс-лист</a>
+                    <a href="services.php" class="section-link">
+                        <i class="bi bi-card-list me-1"></i>
+                        Услуги и прайс-лист
+                    </a>
                 </div>
             </div>
         </section>

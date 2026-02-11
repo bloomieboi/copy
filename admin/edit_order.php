@@ -32,8 +32,8 @@ if (in_array((int)$order['status_id'], $archiveStatusIds, true)) {
 // Получаем статусы
 $statuses = $pdo->query("SELECT * FROM status ORDER BY status_id")->fetchAll();
 
-// Получаем адреса
-$addresses = $pdo->query("SELECT * FROM address ORDER BY address_name")->fetchAll();
+// Получаем точки обслуживания (адреса)
+$addresses = $pdo->query("SELECT location_id as address_id, CONCAT(location_name, ' - ', address) as address_name FROM locations WHERE is_active = 1 ORDER BY location_name")->fetchAll();
 
 // Получаем текущий адрес заказа
 $stmt = $pdo->prepare("SELECT address_id FROM order_address WHERE order_id = ?");

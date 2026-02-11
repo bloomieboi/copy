@@ -42,8 +42,8 @@ if ($serviceId > 0) {
     }
 }
 
-// Получаем адреса для выбора
-$addresses = $pdo->query("SELECT * FROM address ORDER BY address_name")->fetchAll();
+// Получаем точки обслуживания (адреса) для выбора
+$addresses = $pdo->query("SELECT location_id as address_id, CONCAT(location_name, ' - ', address) as address_name FROM locations WHERE is_active = 1 ORDER BY location_name")->fetchAll();
 
 // Получаем скидочные карты пользователя (предусловие: наличие скидочной карты)
 $stmt = $pdo->prepare("SELECT dc.discount_id, dc.number_of_bonuses 
