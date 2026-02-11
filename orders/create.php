@@ -70,6 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && !$error) {
     $discountCardId = isset($_POST['discount_card_id']) ? (int)$_POST['discount_card_id'] : 0;
     $discountCardNumber = trim($_POST['discount_card_number'] ?? '');
     $useBonuses = intval($_POST['use_bonuses'] ?? 0);
+    $clientComment = trim($_POST['client_comment'] ?? '');
     if ($discountCardId <= 0 && $discountCardNumber !== '') {
         $discountCardId = (int)preg_replace('/\D/', '', $discountCardNumber);
     }
@@ -157,6 +158,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && !$error) {
                     $stmt->execute([$orderId, $addressId]);
                 }
 
+                // Сохраняем комментарий клиента, если он есть
+                if ($clientComment !== '') {
+                    addOrderLog($orderId, $_SESSION['user_id'], 'client_comment', $clientComment);
+                }
+
                 // Списываем использованные бонусы с выбранной/привязанной карты
                 if ($useBonuses > 0 && $selectedCard) {
                     $stmt = $pdo->prepare("UPDATE discount_card SET number_of_bonuses = number_of_bonuses - ? WHERE discount_id = ?");
@@ -242,6 +248,14 @@ require_once __DIR__ . '/../function/layout_start.php';
                     Нет доступных адресов. Обратитесь к администратору для добавления адресов организации.
                 </div>
                 <?php endif; ?>
+            </div>
+
+            <div class="form-section">
+                <h3>Дополнительная информация</h3>
+                <div class="form-group">
+                    <label for="client_comment">Комментарий к заказу (необязательно):</label>
+                    <textarea name="client_comment" id="client_comment" rows="3" placeholder="Например, особые пожелания к печати, срочность и т.д."></textarea>
+                </div>
             </div>
             
             <div class="form-section">

@@ -12,7 +12,7 @@ if (!$orderId) {
 }
 
 // Проверяем, что заказ принадлежит клиенту
-$stmt = $pdo->prepare("SELECT * FROM order_ WHERE order_id = ? AND user_id = ?");
+$stmt = $pdo->prepare("SELECT order_id, user_id, status_id, executor_id FROM order_ WHERE order_id = ? AND user_id = ?");
 $stmt->execute([$orderId, $_SESSION['user_id']]);
 $order = $stmt->fetch();
 
@@ -35,24 +35,8 @@ $messageCount = (int)$stmt->fetch()['count'];
 // Чат может начать только сотрудник!
 $chatStarted = $messageCount > 0;
 
-// Определяем собеседника (сотрудника)
-$partnerId = null;
-if ($chatStarted) {
-    // Если чат уже начат, находим сотрудника
-    $stmt = $pdo->prepare("SELECT DISTINCT 
-                              CASE 
-                                WHEN from_user_id = ? THEN to_user_id 
-                                ELSE from_user_id 
-                              END AS other_id
-                           FROM message
-                           WHERE order_id = ? AND (from_user_id = ? OR to_user_id = ?)
-                           LIMIT 1");
-    $stmt->execute([$_SESSION['user_id'], $orderId, $_SESSION['user_id'], $_SESSION['user_id']]);
-    $existing = $stmt->fetch();
-    if ($existing) {
-        $partnerId = (int)$existing['other_id'];
-    }
-}
+// Определяем собеседника (сотрудника-исполнителя)
+$partnerId = $order['executor_id'] ? (int)$order['executor_id'] : null;
 
 // Отправка сообщения
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['message']) && $partnerId) {
@@ -138,4 +122,3 @@ require_once __DIR__ . '/../function/layout_start.php';
         if (box) box.scrollTop = box.scrollHeight;
     </script>
 <?php require_once __DIR__ . '/../function/layout_end.php'; ?>
-
