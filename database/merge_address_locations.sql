@@ -19,8 +19,8 @@ SELECT
 FROM `address` a
 WHERE NOT EXISTS (
     SELECT 1 FROM `locations` l 
-    WHERE l.address = a.address_name 
-       OR l.location_name = a.address_name
+    WHERE l.address = a.address_name COLLATE utf8mb4_unicode_ci
+       OR l.location_name = a.address_name COLLATE utf8mb4_unicode_ci
 )
 ON DUPLICATE KEY UPDATE location_name = location_name;
 
@@ -30,8 +30,8 @@ CREATE TEMPORARY TABLE IF NOT EXISTS address_location_map AS
 SELECT 
     a.address_id,
     COALESCE(
-        (SELECT location_id FROM locations WHERE address = a.address_name LIMIT 1),
-        (SELECT location_id FROM locations WHERE location_name = a.address_name LIMIT 1)
+        (SELECT location_id FROM locations WHERE address = a.address_name COLLATE utf8mb4_unicode_ci LIMIT 1),
+        (SELECT location_id FROM locations WHERE location_name = a.address_name COLLATE utf8mb4_unicode_ci LIMIT 1)
     ) as location_id
 FROM address a;
 

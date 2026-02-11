@@ -312,7 +312,7 @@ require_once __DIR__ . '/../function/layout_start.php';
                                     <th style="width: 150px;">Телефон</th>
                                     <th style="width: 150px;">Часы работы</th>
                                     <th style="width: 100px;" class="text-center">Статус</th>
-                                    <th style="width: 280px;" class="text-end">Действия</th>
+                                    <th style="width: 180px;" class="text-end">Действия</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -357,12 +357,6 @@ require_once __DIR__ . '/../function/layout_start.php';
                                         </td>
                                         <td class="text-end">
                                             <div class="btn-group btn-group-sm" role="group">
-                                                <a href="location_pricelist.php?location_id=<?= $location['location_id'] ?>" 
-                                                   class="btn btn-primary"
-                                                   title="Прайс-лист">
-                                                    <i class="bi bi-card-list"></i>
-                                                    Прайс
-                                                </a>
                                                 <a href="locations.php?edit=<?= $location['location_id'] ?>" 
                                                    class="btn btn-secondary"
                                                    title="Редактировать">
