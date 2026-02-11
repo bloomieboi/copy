@@ -107,7 +107,7 @@ if (!$order) {
 
 // Проверяем, является ли текущий сотрудник исполнителем
 $isExecutor = ($order['executor_id'] && (int)$order['executor_id'] === (int)$_SESSION['user_id']);
-$canTakeOrder = ((int)$order['status_id'] === 2 && !$order['executor_id']);}
+$canTakeOrder = ((int)$order['status_id'] === 2 && !$order['executor_id']);
 
 // Получаем адрес заказа (точку обслуживания)
 $stmt = $pdo->prepare("SELECT CONCAT(l.location_name, ' - ', l.address) as address_name 
