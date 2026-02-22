@@ -269,15 +269,17 @@ require_once __DIR__ . '/../function/layout_start.php';
             const pw  = document.getElementById('password');
             const pw2 = document.getElementById('password_confirm');
             const form = document.querySelector('.edit-form');
-            function check() {
-                if (pw.value === '' && pw2.value === '') { pw2.setCustomValidity(''); return; }
-                pw2.setCustomValidity(pw.value !== pw2.value ? 'Пароли не совпадают' : '');
+            
+            function validatePasswords() {
+                if (pw.value !== pw2.value) {
+                    pw2.setCustomValidity('Пароли не совпадают');
+                } else {
+                    pw2.setCustomValidity('');
+                }
             }
-            pw.addEventListener('input', check);
-            pw2.addEventListener('input', check);
-            form.addEventListener('submit', function (e) {
-                if (!check()) { e.preventDefault(); pw2.reportValidity(); }
-            });
+
+            pw.addEventListener('input', validatePasswords);
+            pw2.addEventListener('input', validatePasswords);
         });
         </script>
 
