@@ -26,9 +26,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['create_request'])) {
 }
 
 // Заказы для выбора
-$orders = $pdo->query("SELECT o.order_id, o.service_list 
-                       FROM order_ o 
-                       ORDER BY o.created_date DESC")->fetchAll();
+$employeeLocationId = getUserLocationId();
+$orders = [];
+if ($employeeLocationId) {
+    $stmt = $pdo->prepare("SELECT o.order_id, o.service_list 
+                           FROM order_ o
+                           JOIN order_address oa ON o.order_id = oa.order_id
+                           WHERE oa.address_id = ?
+                           ORDER BY o.created_date DESC");
+    $stmt->execute([$employeeLocationId]);
+    $orders = $stmt->fetchAll();
+}
 
 // Запросы сотрудника
 $stmt = $pdo->prepare("SELECT ar.*, o.service_list 
@@ -59,9 +67,13 @@ require_once __DIR__ . '/../function/layout_start.php';
                     <label for="order_id">Заказ:</label>
                     <select name="order_id" id="order_id" required>
                         <option value="">Выберите заказ</option>
-                        <?php foreach($orders as $order): ?>
-                            <option value="<?= $order['order_id'] ?>">#<?= $order['order_id'] ?> — <?= htmlspecialchars(mb_substr($order['service_list'], 0, 40)) ?></option>
-                        <?php endforeach; ?>
+                        <?php if (empty($orders)): ?>
+                            <option value="" disabled>Нет доступных заказов в вашем копицентре</option>
+                        <?php else: ?>
+                            <?php foreach($orders as $order): ?>
+                                <option value="<?= $order['order_id'] ?>">#<?= $order['order_id'] ?> — <?= htmlspecialchars(mb_substr($order['service_list'], 0, 40)) ?></option>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
                     </select>
                 </div>
                 <div class="form-group">
@@ -107,4 +119,3 @@ require_once __DIR__ . '/../function/layout_start.php';
             <?php endif; ?>
         </section>
 <?php require_once __DIR__ . '/../function/layout_end.php'; ?>
-

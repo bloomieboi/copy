@@ -24,6 +24,18 @@ if (!$order) {
     exit;
 }
 
+// Проверяем, что заказ относится к локации сотрудника
+$employeeLocationId = getUserLocationId();
+if ($employeeLocationId) {
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM order_address WHERE order_id = ? AND address_id = ?");
+    $stmt->execute([$orderId, $employeeLocationId]);
+    if ($stmt->fetchColumn() == 0) {
+        // Заказ не принадлежит этому копицентру, нет доступа к чату
+        header("Location: index.php");
+        exit;
+    }
+}
+
 // Проверяем, является ли текущий сотрудник исполнителем этого заказа
 $isExecutor = ($order['executor_id'] && (int)$order['executor_id'] === (int)$_SESSION['user_id']);
 
@@ -122,4 +134,3 @@ require_once __DIR__ . '/../function/layout_start.php';
         if (box) box.scrollTop = box.scrollHeight;
     </script>
 <?php require_once __DIR__ . '/../function/layout_end.php'; ?>
-

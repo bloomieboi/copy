@@ -105,6 +105,19 @@ if (!$order) {
     exit;
 }
 
+// Проверяем, что заказ относится к локации сотрудника
+$employeeLocationId = getUserLocationId();
+if ($employeeLocationId) {
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM order_address WHERE order_id = ? AND address_id = ?");
+    $stmt->execute([$orderId, $employeeLocationId]);
+    if ($stmt->fetchColumn() == 0) {
+        // Заказ не принадлежит этому копицентру, нет доступа
+        header("Location: index.php");
+        exit;
+    }
+}
+
+
 // Проверяем, является ли текущий сотрудник исполнителем
 $isExecutor = ($order['executor_id'] && (int)$order['executor_id'] === (int)$_SESSION['user_id']);
 $canTakeOrder = ((int)$order['status_id'] === 2 && !$order['executor_id']);
