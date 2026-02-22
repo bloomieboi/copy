@@ -63,13 +63,26 @@ foreach ($orders as $order) {
     $orderAddresses[$order['order_id']] = $addr ? $addr['address_name'] : null;
 }
 
-// Получаем скидочные карты пользователя
-$stmt = $pdo->prepare("SELECT dc.discount_id, dc.number_of_bonuses 
-                       FROM user_discount_card ud 
-                       JOIN discount_card dc ON ud.discount_id = dc.discount_id
-                       WHERE ud.id_user = ?");
-$stmt->execute([$userId]);
-$discountCards = $stmt->fetchAll();
+// Скидочная карта пользователя (одна, уникальная)
+$discountCard = null;
+try {
+    $stmt = $pdo->prepare("SELECT discount_id, number_of_bonuses FROM discount_card WHERE user_id = ?");
+    $stmt->execute([$userId]);
+    $discountCard = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+} catch (PDOException $e) {
+    try {
+        $stmt = $pdo->prepare(
+            "SELECT dc.discount_id, dc.number_of_bonuses
+             FROM discount_card dc
+             JOIN user_discount_card udc ON udc.discount_id = dc.discount_id
+             WHERE udc.id_user = ? LIMIT 1"
+        );
+        $stmt->execute([$userId]);
+        $discountCard = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    } catch (PDOException $e2) {
+        $discountCard = null;
+    }
+}
 
 // Получаем способы оплаты пользователя
 $stmt = $pdo->prepare("SELECT * FROM payment_method WHERE id_user = ?");
@@ -96,19 +109,18 @@ require_once __DIR__ . '/../function/layout_start.php';
             <div class="alert alert-success">Новая карта успешно добавлена.</div>
         <?php endif; ?>
 
-        <?php if (!empty($discountCards)): ?>
         <section class="discount-section">
-            <h3>Скидочные карты</h3>
-            <ul class="params-list">
-                <?php foreach($discountCards as $card): ?>
-                    <li>
-                        <strong>Карта #<?= $card['discount_id'] ?>:</strong>
-                        бонусов: <?= (int)$card['number_of_bonuses'] ?>
-                    </li>
-                <?php endforeach; ?>
-            </ul>
+            <h3>Скидочная карта</h3>
+            <?php if ($discountCard): ?>
+                <div class="stat-card" style="display:inline-block;min-width:200px;text-align:center;">
+                    <p><strong>Карта #<?= (int)$discountCard['discount_id'] ?></strong></p>
+                    <div class="stat-value"><?= (int)$discountCard['number_of_bonuses'] ?></div>
+                    <p class="form-hint">бонусов (1 бонус = 1 ₽ скидки)</p>
+                </div>
+            <?php else: ?>
+                <p class="form-hint">У вас пока нет скидочной карты. Она выдаётся администратором.</p>
+            <?php endif; ?>
         </section>
-        <?php endif; ?>
 
         <section class="payment-methods-section" id="payment-methods">
             <h3>Способы оплаты</h3>

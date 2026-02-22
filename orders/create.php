@@ -3,34 +3,28 @@ require_once __DIR__ . '/../function/connect.php';
 require_once __DIR__ . '/../function/auth.php';
 require_once __DIR__ . '/../function/helpers.php';
 session_start();
-// Предусловие: пользователь должен быть авторизован (клиент, сотрудник или администратор)
 requireLogin();
 
-$error = '';
-$success = '';
+$error   = '';
 $service = null;
 $serviceId = intval($_GET['service_id'] ?? 0);
 
-// Получаем информацию об услуге из базы данных
+// Получаем услугу
 if ($serviceId > 0) {
     $stmt = $pdo->prepare("SELECT * FROM services WHERE service_id = ?");
     $stmt->execute([$serviceId]);
     $service = $stmt->fetch();
-    
-    // Проверка доступности услуги
     if (!$service) {
         $error = 'Услуга не найдена';
     } elseif (!$service['is_active']) {
-        // Альтернативный поток: Услуга временно недоступна
         $error = 'Услуга временно недоступна';
     } elseif ($service['is_offline']) {
         // Альтернативный поток: Услуга только оффлайн
         $error = 'Данная услуга доступна для заказа только в наших копицентрах. Онлайн-заказ невозможен.';
     }
 } else {
-    // Поддержка старого формата для обратной совместимости
     $serviceName = $_GET['service'] ?? '';
-    $basePrice = floatval($_GET['price'] ?? 0);
+    $basePrice   = floatval($_GET['price'] ?? 0);
     if ($serviceName && $basePrice > 0) {
         // Создаем временный объект услуги для обратной совместимости
         $service = [
@@ -46,41 +40,41 @@ if ($serviceId > 0) {
     }
 }
 
-// Получаем точки обслуживания (адреса) для выбора
+// Точки обслуживания для выбора
 $addresses = $pdo->query("SELECT location_id as address_id, CONCAT(location_name, ' - ', address) as address_name FROM locations WHERE is_active = 1 ORDER BY location_name")->fetchAll();
 
-// Получаем скидочные карты пользователя (предусловие: наличие скидочной карты)
-$stmt = $pdo->prepare("SELECT dc.discount_id, dc.number_of_bonuses 
-                       FROM user_discount_card ud 
-                       JOIN discount_card dc ON ud.discount_id = dc.discount_id
-                       WHERE ud.id_user = ?");
-$stmt->execute([$_SESSION['user_id']]);
-$discountCards = $stmt->fetchAll(PDO::FETCH_ASSOC);
-$totalBonuses = 0;
-$discountCardsById = [];
-foreach ($discountCards as $card) {
-    $b = (int)$card['number_of_bonuses'];
-    $totalBonuses += $b;
-    $discountCardsById[(int)$card['discount_id']] = $card;
+// Скидочная карта текущего пользователя (одна, уникальная)
+$discountCard = null;
+try {
+    $stmt = $pdo->prepare("SELECT discount_id, number_of_bonuses FROM discount_card WHERE user_id = ?");
+    $stmt->execute([$_SESSION['user_id']]);
+    $discountCard = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+} catch (PDOException $e) {
+    try {
+        $stmt = $pdo->prepare(
+            "SELECT dc.discount_id, dc.number_of_bonuses
+             FROM discount_card dc
+             JOIN user_discount_card udc ON udc.discount_id = dc.discount_id
+             WHERE udc.id_user = ? LIMIT 1"
+        );
+        $stmt->execute([$_SESSION['user_id']]);
+        $discountCard = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    } catch (PDOException $e2) {
+        $discountCard = null;
+    }
 }
 
 // Обработка формы
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && !$error) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
     $serviceIdFromForm = intval($_POST['service_id'] ?? 0);
-    $serviceList = trim($_POST['service_list'] ?? '');
-    $basePrice = floatval($_POST['base_price'] ?? 0);
-    $quantity = intval($_POST['quantity'] ?? 0);
-    $addressId = intval($_POST['address_id'] ?? 0);
-    $discountCardId = isset($_POST['discount_card_id']) ? (int)$_POST['discount_card_id'] : 0;
-    $discountCardNumber = trim($_POST['discount_card_number'] ?? '');
-    $useBonuses = intval($_POST['use_bonuses'] ?? 0);
-    $clientComment = trim($_POST['client_comment'] ?? '');
-    if ($discountCardId <= 0 && $discountCardNumber !== '') {
-        $discountCardId = (int)preg_replace('/\D/', '', $discountCardNumber);
-    }
+    $serviceList       = trim($_POST['service_list'] ?? '');
+    $basePrice         = floatval($_POST['base_price'] ?? 0);
+    $quantity          = intval($_POST['quantity'] ?? 0);
+    $addressId         = intval($_POST['address_id'] ?? 0);
+    $useBonuses        = intval($_POST['use_bonuses'] ?? 0);
+    $clientComment     = trim($_POST['client_comment'] ?? '');
     if ($useBonuses < 0) $useBonuses = 0;
-    
-    // Повторная проверка доступности услуги
+
     if ($serviceIdFromForm > 0) {
         $stmt = $pdo->prepare("SELECT * FROM services WHERE service_id = ? AND is_active = 1");
         $stmt->execute([$serviceIdFromForm]);
@@ -88,271 +82,198 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && !$error) {
         if (!$serviceCheck) {
             $error = 'Услуга временно недоступна';
         } else {
-            $service = $serviceCheck;
+            $service     = $serviceCheck;
             $serviceList = $service['service_name'];
-            $basePrice = floatval($service['base_price']);
+            $basePrice   = floatval($service['base_price']);
         }
     }
-    
-    // Валидация количества (проверка пределов INT в MySQL)
-    $maxInt = 2147483647; // Максимальное значение INT в MySQL (2^31 - 1)
-    $maxQuantity = 1000000; // Разумный предел для количества услуг (1 миллион)
-    
+
+    $maxQuantity = 1000000;
+    $maxInt      = 2147483647;
+
     if (!$error && (!$serviceList || $basePrice <= 0)) {
         $error = 'Заполните все поля корректно.';
     } elseif (!$error && $quantity <= 0) {
         $error = 'Количество должно быть больше нуля.';
     } elseif (!$error && $quantity > $maxQuantity) {
-        $error = 'Количество не может превышать ' . number_format($maxQuantity, 0, '', ' ') . ' единиц. Для больших заказов свяжитесь с администратором.';
-    } elseif (!$error && !is_numeric($quantity)) {
-        $error = 'Количество должно быть числом.';
+        $error = 'Количество не может превышать ' . number_format($maxQuantity, 0, '', ' ') . ' единиц.';
     }
-    
+
     if (!$error && $addressId <= 0) {
-        $error = 'Необходимо выбрать адрес организации';
+        $error = 'Необходимо выбрать точку обслуживания.';
     }
-    
-    // Проверка переполнения при расчете цены
+
     if (!$error) {
-        $calculatedPrice = $basePrice * $quantity;
-        if ($calculatedPrice > PHP_FLOAT_MAX || !is_finite($calculatedPrice)) {
-            $error = 'Стоимость заказа превышает максимально допустимое значение. Уменьшите количество.';
-        } elseif ($calculatedPrice > $maxInt) {
-            $error = 'Стоимость заказа слишком велика. Максимальная сумма: ' . number_format($maxInt, 2, '.', ' ') . ' руб.';
+        $price = $basePrice * $quantity;
+        if (!is_finite($price) || $price > $maxInt) {
+            $error = 'Стоимость заказа слишком велика. Уменьшите количество.';
         }
     }
-    
+
     if (!$error) {
-        // Стоимость считается как цена за единицу * количество
         $price = $basePrice * $quantity;
 
-        // Сценарий 6: проверка валидности скидочной карты и применение скидки
-        $selectedCard = null;
-        if ($discountCardId > 0 && isset($discountCardsById[$discountCardId])) {
-            $selectedCard = $discountCardsById[$discountCardId];
+        // Применяем бонусы только с карты самого пользователя
+        if ($useBonuses > 0 && $discountCard) {
+            $maxUsable  = min((int)$discountCard['number_of_bonuses'], (int)floor($price));
+            $useBonuses = min($useBonuses, $maxUsable);
+        } else {
+            $useBonuses = 0;
         }
-        if ($discountCardId > 0 && ($selectedCard === null || (int)$selectedCard['number_of_bonuses'] <= 0)) {
-            // Альтернативный поток: карта недействительна, просрочена или не применима к данной услуге
-            $error = 'Скидочная карта недействительна';
-            $selectedCard = null;
-        }
+        $finalPrice = $price - $useBonuses;
 
-        if (!$error) {
-            $maxUsable = 0;
-            if ($selectedCard) {
-                $maxUsable = min((int)$selectedCard['number_of_bonuses'], (int)floor($price));
-                if ($useBonuses > $maxUsable) {
-                    $useBonuses = $maxUsable;
-                }
-            } else {
-                $useBonuses = 0;
+        try {
+            $serviceWithQuantity = $serviceList . ' (количество: ' . $quantity . ')';
+            $stmt = $pdo->prepare("INSERT INTO order_ (service_list, price, status_id, user_id) VALUES (?, ?, 1, ?)");
+            $stmt->execute([$serviceWithQuantity, $finalPrice, $_SESSION['user_id']]);
+            $orderId = $pdo->lastInsertId();
+            addOrderLog($orderId, $_SESSION['user_id'], 'order_created', 'Клиент создал заказ');
+
+            $stmt = $pdo->prepare("INSERT INTO order_address (order_id, address_id) VALUES (?, ?)");
+            $stmt->execute([$orderId, $addressId]);
+
+            if ($clientComment !== '') {
+                addOrderLog($orderId, $_SESSION['user_id'], 'client_comment', $clientComment);
             }
-            $finalPrice = $price - $useBonuses;
 
-            try {
-                // Создаем заказ со статусом "В процессе оплаты" (1)
-                $serviceWithQuantity = $serviceList . ' (количество: ' . $quantity . ')';
-                $stmt = $pdo->prepare("INSERT INTO order_ (service_list, price, status_id, user_id) VALUES (?, ?, 1, ?)");
-                $stmt->execute([$serviceWithQuantity, $finalPrice, $_SESSION['user_id']]);
-                $orderId = $pdo->lastInsertId();
-                addOrderLog($orderId, $_SESSION['user_id'], 'order_created', 'Клиент создал заказ');
-                
-                if ($addressId > 0) {
-                    $stmt = $pdo->prepare("INSERT INTO order_address (order_id, address_id) VALUES (?, ?)");
-                    $stmt->execute([$orderId, $addressId]);
-                }
-
-                // Сохраняем комментарий клиента, если он есть
-                if ($clientComment !== '') {
-                    addOrderLog($orderId, $_SESSION['user_id'], 'client_comment', $clientComment);
-                }
-
-                // Списываем использованные бонусы с выбранной/привязанной карты
-                if ($useBonuses > 0 && $selectedCard) {
+            if ($useBonuses > 0 && $discountCard) {
+                try {
                     $stmt = $pdo->prepare("UPDATE discount_card SET number_of_bonuses = number_of_bonuses - ? WHERE discount_id = ?");
-                    $stmt->execute([$useBonuses, $selectedCard['discount_id']]);
-                }
-                
-                header("Location: ../profile/index.php?order_created=1");
-                exit;
-            } catch (PDOException $e) {
-                $error = 'Ошибка создания заказа: ' . $e->getMessage();
+                    $stmt->execute([$useBonuses, $discountCard['discount_id']]);
+                } catch (PDOException $e) {}
             }
+
+            header("Location: ../profile/index.php?order_created=1");
+            exit;
+        } catch (PDOException $e) {
+            $error = 'Ошибка создания заказа: ' . $e->getMessage();
         }
     }
 }
 
 $pageTitle = 'Оформление заказа — КопиПейст';
-$baseUrl = '..';
+$baseUrl   = '..';
 require_once __DIR__ . '/../function/layout_start.php';
 ?>
         <h2>Оформление заказа</h2>
-        
+
         <?php if ($error): ?>
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                <?= htmlspecialchars($error) ?>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
+            <div class="alert alert-error"><?= htmlspecialchars($error) ?></div>
             <div class="form-actions">
-                <a href="../index.php" class="btn btn-secondary">
-                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                        <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/>
-                    </svg>
-                    Вернуться в каталог услуг
-                </a>
+                <a href="../index.php" class="btn btn-secondary">Вернуться в каталог услуг</a>
             </div>
         <?php elseif ($service): ?>
+
             <form method="POST" class="order-form">
+
                 <div class="form-section">
-                    <h3>Информация об услуге</h3>
+                    <h3>Услуга</h3>
                     <div class="form-group">
-                        <label for="service_list">Услуга:</label>
-                        <input type="text" name="service_list" id="service_list" value="<?= htmlspecialchars($service['service_name']) ?>" readonly>
+                        <label>Услуга:</label>
+                        <input type="text" value="<?= htmlspecialchars($service['service_name']) ?>" readonly>
                         <?php if ($service['service_id'] > 0): ?>
-                            <input type="hidden" name="service_id" value="<?= $service['service_id'] ?>">
+                            <input type="hidden" name="service_id"   value="<?= $service['service_id'] ?>">
                         <?php endif; ?>
+                        <input type="hidden" name="service_list" value="<?= htmlspecialchars($service['service_name']) ?>">
+                        <input type="hidden" name="base_price"   value="<?= $service['base_price'] ?>">
                         <?php if (!empty($service['description'])): ?>
-                            <p><small><?= htmlspecialchars($service['description']) ?></small></p>
+                            <small class="form-text text-muted"><?= htmlspecialchars($service['description']) ?></small>
                         <?php endif; ?>
                         <p class="form-hint" style="margin-top: 5px;">
                             <i class="bi bi-info-circle"></i> Эту услугу также можно заказать лично в любом из наших копицентров.
                         </p>
                     </div>
-                    
-                    <div class="form-group">
-                        <label for="quantity">
-                            Количество (листы / услуги):
-                            <i class="bi bi-info-circle" data-bs-toggle="tooltip" title="Максимум: 2 147 483 647"></i>
-                        </label>
-                        <input type="number" 
-                               name="quantity" 
-                               id="quantity" 
-                               min="1" 
-                               max="2147483647"
-                               step="1" 
-                               value="1" 
-                               required>
-                        <input type="hidden" name="base_price" value="<?= $service['base_price'] ?>">
-                        <small class="form-text text-muted">
-                            Цена за единицу: <?= formatPrice($service['base_price']) ?>. 
-                            Итоговая стоимость = цена × количество.
-                        </small>
-                    </div>
-                
-                <?php if (!empty($addresses)): ?>
-                <div class="form-group">
-                    <label for="address_id">Адрес организации (обязательно):</label>
-                    <select name="address_id" id="address_id" required>
-                        <option value="">Выберите адрес</option>
-                        <?php foreach($addresses as $addr): ?>
-                            <option value="<?= $addr['address_id'] ?>"><?= htmlspecialchars($addr['address_name']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <?php else: ?>
-                <div class="alert alert-error">
-                    Нет доступных адресов. Обратитесь к администратору для добавления адресов организации.
-                </div>
-                <?php endif; ?>
-            </div>
 
-            <div class="form-section">
-                <h3>Дополнительная информация</h3>
-                <div class="form-group">
-                    <label for="client_comment">Комментарий к заказу (необязательно):</label>
-                    <textarea name="client_comment" id="client_comment" rows="3" placeholder="Например, особые пожелания к печати, срочность и т.д."></textarea>
+                    <div class="form-group">
+                        <label for="quantity">Количество:</label>
+                        <input type="number" name="quantity" id="quantity" min="1" max="1000000" step="1" value="1" required>
+                        <small class="form-text text-muted">Цена за единицу: <?= formatPrice($service['base_price']) ?></small>
+                    </div>
+
+                    <?php if (!empty($addresses)): ?>
+                    <div class="form-group">
+                        <label for="address_id">Точка обслуживания: <span class="text-danger">*</span></label>
+                        <select name="address_id" id="address_id" required>
+                            <option value="">Выберите точку обслуживания</option>
+                            <?php foreach ($addresses as $addr): ?>
+                                <option value="<?= $addr['address_id'] ?>"><?= htmlspecialchars($addr['address_name']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <?php else: ?>
+                        <div class="alert alert-error">Нет доступных точек обслуживания. Обратитесь к администратору.</div>
+                    <?php endif; ?>
                 </div>
-            </div>
-            
-            <div class="form-section">
-                <h3>Скидочная карта</h3>
-                <p class="form-hint">Выберите привязанную карту из профиля или введите номер скидочной карты. Система проверит валидность карты и применит скидку к итоговой сумме.</p>
-                <div class="form-group">
-                    <label>Выберите привязанную карту:</label>
-                    <label class="radio-card"><input type="radio" name="discount_card_id" value="0" checked> Не использовать скидку</label>
-                    <?php foreach ($discountCards as $card): ?>
-                        <label class="radio-card">
-                            <input type="radio" name="discount_card_id" value="<?= (int)$card['discount_id'] ?>">
-                            Карта #<?= (int)$card['discount_id'] ?> — бонусов: <?= (int)$card['number_of_bonuses'] ?>
-                        </label>
-                    <?php endforeach; ?>
+
+                <div class="form-section">
+                    <h3>Дополнительная информация</h3>
+                    <div class="form-group">
+                        <label for="client_comment">Комментарий к заказу (необязательно):</label>
+                        <textarea name="client_comment" id="client_comment" rows="3" placeholder="Особые пожелания, срочность и т.д."></textarea>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="discount_card_number">Или введите номер скидочной карты (ID карты):</label>
-                    <input type="text" name="discount_card_number" id="discount_card_number" placeholder="Номер карты" value="">
+
+                <div class="form-section">
+                    <h3>Скидочная карта</h3>
+
+                    <?php if ($discountCard && (int)$discountCard['number_of_bonuses'] > 0): ?>
+                        <p class="form-hint">
+                            На вашей карте <strong><?= (int)$discountCard['number_of_bonuses'] ?> бонусов</strong>.
+                            1 бонус = 1 рубль скидки.
+                        </p>
+                        <div class="form-group">
+                            <label for="use_bonuses">
+                                Списать бонусов
+                                <small class="text-muted">(макс. <?= (int)$discountCard['number_of_bonuses'] ?>)</small>:
+                            </label>
+                            <input type="number" name="use_bonuses" id="use_bonuses"
+                                   min="0" max="<?= (int)$discountCard['number_of_bonuses'] ?>" value="0">
+                        </div>
+                    <?php elseif ($discountCard): ?>
+                        <p class="form-hint">На вашей карте 0 бонусов.</p>
+                    <?php else: ?>
+                        <p class="form-hint">У вас пока нет скидочной карты.</p>
+                    <?php endif; ?>
+
+                    <p class="order-total-hint" id="order_total_hint">
+                        <strong>Итоговая сумма</strong> будет рассчитана при оформлении заказа.
+                    </p>
                 </div>
-                <?php if ($totalBonuses > 0): ?>
-                <div class="form-group">
-                    <label for="use_bonuses">Списать бонусов (1 бонус = 1 рубль скидки, макс. по карте и сумме заказа):</label>
-                    <input type="number" name="use_bonuses" id="use_bonuses" min="0" max="<?= (int)$totalBonuses ?>" value="0">
-                </div>
-                <?php endif; ?>
-                <p class="order-total-hint" id="order_total_hint"><strong>Итоговая сумма</strong> пересчитывается по выбранной карте и количеству при оформлении заказа.</p>
-            </div>
-            
+
                 <div class="form-actions">
-                    <button type="submit" name="submit_order" class="btn btn-primary">
-                        <i class="bi bi-check-circle me-1"></i>
-                        Оформить заказ
-                    </button>
-                    <a href="../index.php" class="btn btn-secondary">
-                        <i class="bi bi-x-circle me-1"></i>
-                        Отмена
-                    </a>
+                    <button type="submit" class="btn btn-primary">Оформить заказ</button>
+                    <a href="../index.php" class="btn btn-secondary">Отмена</a>
                 </div>
             </form>
-            
+
             <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                const quantityInput = document.getElementById('quantity');
-                const basePriceInput = document.querySelector('input[name="base_price"]');
-                const totalHint = document.getElementById('order_total_hint');
-                
-                const MAX_QUANTITY = 1000000; // 1 миллион
-                const MAX_PRICE = 2147483647; // INT макс MySQL
-                
-                // Валидация количества в реальном времени
-                function validateQuantity() {
-                    const quantity = parseInt(quantityInput.value) || 0;
-                    const basePrice = parseFloat(basePriceInput.value) || 0;
-                    
-                    // Проверка количества
-                    if (quantity <= 0) {
-                        quantityInput.setCustomValidity('Количество должно быть больше нуля');
-                        return false;
-                    } else if (quantity > MAX_QUANTITY) {
-                        quantityInput.setCustomValidity('Количество не может превышать 1 000 000 ед.');
-                        return false;
+            document.addEventListener('DOMContentLoaded', function () {
+                const qtyInput   = document.getElementById('quantity');
+                const bonusInput = document.getElementById('use_bonuses');
+                const basePrice  = parseFloat(<?= json_encode((float)$service['base_price']) ?>);
+                const maxBonuses = <?= $discountCard ? (int)$discountCard['number_of_bonuses'] : 0 ?>;
+                const hint       = document.getElementById('order_total_hint');
+
+                function update() {
+                    const qty    = Math.max(0, parseInt(qtyInput.value) || 0);
+                    const bonuses = bonusInput ? Math.max(0, parseInt(bonusInput.value) || 0) : 0;
+                    const total  = basePrice * qty;
+                    const final  = Math.max(0, total - Math.min(bonuses, maxBonuses, total));
+                    if (!hint) return;
+                    if (qty <= 0) { hint.innerHTML = '<strong>Итоговая сумма:</strong> —'; return; }
+                    const fmt = (n) => n.toLocaleString('ru-RU', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    if (bonuses > 0 && bonusInput) {
+                        hint.innerHTML = '<strong>Итоговая сумма:</strong> ' + fmt(total) + ' руб. − ' + Math.min(bonuses, maxBonuses, Math.floor(total)) + ' бонусов = <strong>' + fmt(final) + ' руб.</strong>';
+                    } else {
+                        hint.innerHTML = '<strong>Итоговая сумма:</strong> ' + fmt(total) + ' руб.';
                     }
-                    
-                    // Проверка стоимости
-                    const totalPrice = basePrice * quantity;
-                    if (totalPrice > MAX_PRICE) {
-                        quantityInput.setCustomValidity('Стоимость заказа превышает максимум (2 147 483 647 руб.). Уменьшите количество.');
-                        return false;
-                    }
-                    
-                    quantityInput.setCustomValidity('');
-                    
-                    // Обновляем подсказку с итоговой суммой
-                    if (totalHint) {
-                        const formattedPrice = totalPrice.toLocaleString('ru-RU', {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                        });
-                        totalHint.innerHTML = '<strong>Итоговая сумма:</strong> ' + formattedPrice + ' руб. <small>(до применения бонусов)</small>';
-                    }
-                    
-                    return true;
                 }
-                
-                quantityInput.addEventListener('input', validateQuantity);
-                quantityInput.addEventListener('blur', validateQuantity);
-                
-                // Начальная валидация
-                validateQuantity();
+
+                qtyInput.addEventListener('input', update);
+                if (bonusInput) bonusInput.addEventListener('input', update);
+                update();
             });
             </script>
+
         <?php endif; ?>
 <?php require_once __DIR__ . '/../function/layout_end.php'; ?>
