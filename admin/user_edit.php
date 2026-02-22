@@ -26,6 +26,9 @@ if (!$user) {
 
 $roles = $pdo->query("SELECT * FROM role_ ORDER BY role_id")->fetchAll();
 $validRoleIds = array_column($roles, 'role_id');
+// Загружаем список активных копицентров для выбора
+$locations = $pdo->query("SELECT location_id, CONCAT(location_name, ' - ', address) as address_name FROM locations WHERE is_active = 1 ORDER BY location_name")->fetchAll();
+
 
 $success = '';
 $error   = '';
@@ -37,6 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
     $roleId          = isset($_POST['role_id']) ? (int)$_POST['role_id'] : 0;
     $password        = trim($_POST['password'] ?? '');
     $passwordConfirm = trim($_POST['password_confirm'] ?? '');
+    $locationId      = isset($_POST['location_id']) ? (int)$_POST['location_id'] : null;
 
     if (!in_array($roleId, $validRoleIds, true)) {
         $error = 'Выбрана недопустимая роль. Выберите значение из списка.';
@@ -64,16 +68,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                 if ($stmt->fetch()) {
                     $error = 'Пользователь с таким номером телефона уже зарегистрирован.';
                 } else {
+                    // Сотрудник может быть привязан к локации, остальные - нет
+                    if ($roleId != 2) {
+                        $locationId = null;
+                    }
+
                     if ($password !== '') {
                         $passwordHash = password_hash($password, PASSWORD_DEFAULT);
-                        $stmt = $pdo->prepare("UPDATE user_ SET login = ?, phone_number = ?, role_id = ?, password = ? WHERE id_user = ?");
-                        $stmt->execute([$login, $phone, $roleId, $passwordHash, $userId]);
+                        $stmt = $pdo->prepare("UPDATE user_ SET login = ?, phone_number = ?, role_id = ?, password = ?, location_id = ? WHERE id_user = ?");
+                        $stmt->execute([$login, $phone, $roleId, $passwordHash, $locationId, $userId]);
                         $success = 'Учётная запись обновлена. Пароль изменён.';
                     } else {
-                        $stmt = $pdo->prepare("UPDATE user_ SET login = ?, phone_number = ?, role_id = ? WHERE id_user = ?");
-                        $stmt->execute([$login, $phone, $roleId, $userId]);
+                        $stmt = $pdo->prepare("UPDATE user_ SET login = ?, phone_number = ?, role_id = ?, location_id = ? WHERE id_user = ?");
+                        $stmt->execute([$login, $phone, $roleId, $locationId, $userId]);
                         $success = 'Учётная запись обновлена.';
                     }
+                    // Обновляем данные на странице после сохранения
                     $user['login']        = $login;
                     $user['phone_number'] = $phone;
                     $user['role_id']      = $roleId;
@@ -180,7 +190,7 @@ require_once __DIR__ . '/../function/layout_start.php';
         <?php endif; ?>
 
         <!-- Форма редактирования учётной записи -->
-        <form method="POST" class="edit-form">
+        <form method="POST" class="edit-form" x-data="{ selectedRole: <?= (int)$user['role_id'] ?> }">
             <div class="form-group">
                 <label for="login">Логин:</label>
                 <input type="text" name="login" id="login" maxlength="30"
@@ -195,7 +205,7 @@ require_once __DIR__ . '/../function/layout_start.php';
 
             <div class="form-group">
                 <label for="role_id">Роль (выберите из списка):</label>
-                <select name="role_id" id="role_id" required>
+                <select name="role_id" id="role_id" required x-model.number="selectedRole">
                     <?php foreach ($roles as $role): ?>
                         <option value="<?= (int)$role['role_id'] ?>"
                             <?= (int)$user['role_id'] === (int)$role['role_id'] ? 'selected' : '' ?>>
@@ -204,6 +214,22 @@ require_once __DIR__ . '/../function/layout_start.php';
                     <?php endforeach; ?>
                 </select>
             </div>
+
+            <!-- Поле выбора копицентра, видимо только для роли "Сотрудник" (role_id = 2) -->
+            <div class="form-group" x-show="selectedRole === 2" x-transition>
+                <label for="location_id">Копицентр (адрес прикрепления):</label>
+                <select name="location_id" id="location_id">
+                    <option value="">Не привязан</option>
+                    <?php foreach ($locations as $location): ?>
+                        <option value="<?= (int)$location['location_id'] ?>"
+                            <?= (int)($user['location_id'] ?? 0) === (int)$location['location_id'] ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($location['address_name']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <small class="form-text text-muted">Сотрудник сможет работать только с заказами из своего копицентра.</small>
+            </div>
+
 
             <div class="form-group">
                 <label for="password">Новый пароль (оставьте пустым, чтобы не менять):</label>
