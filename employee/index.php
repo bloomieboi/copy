@@ -12,21 +12,33 @@ requireRole(2);
 
 $tab = $_GET['tab'] ?? 'in_progress'; // in_progress | open
 
-// Заказы в работе (статус «В работе» — status_id = 6)
-$ordersInProgress = $pdo->query("SELECT o.*, s.status_name, s.status_id, u.login as client_login 
-                                 FROM order_ o 
-                                 JOIN status s ON o.status_id = s.status_id 
-                                 JOIN user_ u ON o.user_id = u.id_user
-                                 WHERE o.status_id = 6 
-                                 ORDER BY o.created_date ASC")->fetchAll();
+$employeeLocationId = getUserLocationId();
+$ordersInProgress = [];
+$ordersOpen = [];
 
-// Открытые заявки (ожидают обработки: в обработке, назначен — status_id 1, 2), отсортированы по дате поступления
-$ordersOpen = $pdo->query("SELECT o.*, s.status_name, s.status_id, u.login as client_login 
-                           FROM order_ o 
-                           JOIN status s ON o.status_id = s.status_id 
-                           JOIN user_ u ON o.user_id = u.id_user
-                           WHERE o.status_id IN (1, 2) 
-                           ORDER BY o.created_date ASC")->fetchAll();
+if ($employeeLocationId) {
+    // Заказы в работе (статус «В работе» — status_id = 6)
+    $stmt = $pdo->prepare("SELECT o.*, s.status_name, s.status_id, u.login as client_login 
+                                     FROM order_ o 
+                                     JOIN status s ON o.status_id = s.status_id 
+                                     JOIN user_ u ON o.user_id = u.id_user
+                                     JOIN order_address oa ON o.order_id = oa.order_id
+                                     WHERE o.status_id = 6 AND oa.address_id = ?
+                                     ORDER BY o.created_date ASC");
+    $stmt->execute([$employeeLocationId]);
+    $ordersInProgress = $stmt->fetchAll();
+
+    // Открытые заявки (ожидают обработки: в обработке, назначен — status_id 1, 2), отсортированы по дате поступления
+    $stmt = $pdo->prepare("SELECT o.*, s.status_name, s.status_id, u.login as client_login 
+                               FROM order_ o 
+                               JOIN status s ON o.status_id = s.status_id 
+                               JOIN user_ u ON o.user_id = u.id_user
+                               JOIN order_address oa ON o.order_id = oa.order_id
+                               WHERE o.status_id IN (1, 2) AND oa.address_id = ?
+                               ORDER BY o.created_date ASC");
+    $stmt->execute([$employeeLocationId]);
+    $ordersOpen = $stmt->fetchAll();
+}
 
 $orders = ($tab === 'open') ? $ordersOpen : $ordersInProgress;
 $sectionTitle = ($tab === 'open') ? 'Открытые заявки' : 'Заказы в работе';
@@ -44,6 +56,12 @@ require_once __DIR__ . '/../function/layout_start.php';
         
         <section class="orders-section">
             <h3><?= htmlspecialchars($sectionTitle) ?></h3>
+            <?php if (!$employeeLocationId): ?>
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Вы не привязаны к копицентру. Заказы не отображаются. Обратитесь к администратору.
+                </div>
+            <?php else: ?>
             <p class="form-hint">Список заявок отсортирован по дате поступления (сначала старые).</p>
             <?php if (empty($orders)): ?>
                 <p class="empty-state">Нет заявок в этом разделе.</p>
@@ -73,6 +91,7 @@ require_once __DIR__ . '/../function/layout_start.php';
                         </div>
                     <?php endforeach; ?>
                 </div>
+            <?php endif; ?>
             <?php endif; ?>
         </section>
 <?php require_once __DIR__ . '/../function/layout_end.php'; ?>

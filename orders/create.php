@@ -41,6 +41,20 @@ if ($serviceId > 0) {
 }
 
 // Точки обслуживания для выбора
+$isEmployee = in_array(getRoleId(), [2, 3]);
+$employeeLocationId = null;
+$employeeLocationName = '';
+
+if ($isEmployee && getUserLocationId()) {
+    $employeeLocationId = getUserLocationId();
+    $stmt = $pdo->prepare("SELECT CONCAT(location_name, ' - ', address) as address_name FROM locations WHERE location_id = ?");
+    $stmt->execute([$employeeLocationId]);
+    $location = $stmt->fetch();
+    if ($location) {
+        $employeeLocationName = $location['address_name'];
+    }
+}
+
 $addresses = $pdo->query("SELECT location_id as address_id, CONCAT(location_name, ' - ', address) as address_name FROM locations WHERE is_active = 1 ORDER BY location_name")->fetchAll();
 
 // Скидочная карта текущего пользователя (одна, уникальная)
@@ -192,14 +206,23 @@ require_once __DIR__ . '/../function/layout_start.php';
 
                     <?php if (!empty($addresses)): ?>
                     <div class="form-group">
-                        <label for="address_id">Точка обслуживания: <span class="text-danger">*</span></label>
-                        <select name="address_id" id="address_id" required>
-                            <option value="">Выберите точку обслуживания</option>
-                            <?php foreach ($addresses as $addr): ?>
-                                <option value="<?= $addr['address_id'] ?>"><?= htmlspecialchars($addr['address_name']) ?></option>
-                            <?php endforeach; ?>
-                        </select>
+                        <label for="address_id">Точка обслуживания: <span class="text-danger">*</span></label>                        
+                        <?php if ($isEmployee && $employeeLocationId): ?>
+                            <input type="hidden" name="address_id" value="<?= $employeeLocationId ?>">
+                            <p class="form-control-static" style="padding-top: 7px;">
+                                <strong><?= htmlspecialchars($employeeLocationName) ?></strong><br>
+                                <small class="form-text text-muted">(Вы закреплены за этим копицентром, поэтому адрес выбран автоматически)</small>
+                            </p>
+                        <?php else: ?>
+                            <select name="address_id" id="address_id" required>
+                                <option value="">Выберите точку обслуживания</option>
+                                <?php foreach ($addresses as $addr): ?>
+                                    <option value="<?= $addr['address_id'] ?>"><?= htmlspecialchars($addr['address_name']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        <?php endif; ?>
                     </div>
+
                     <?php else: ?>
                         <div class="alert alert-error">Нет доступных точек обслуживания. Обратитесь к администратору.</div>
                     <?php endif; ?>

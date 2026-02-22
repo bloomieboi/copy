@@ -3,10 +3,26 @@
  * Функции авторизации и проверки прав доступа
  */
 
+/**
+ * Проверяет, авторизован ли пользователь. Если нет, перенаправляет на страницу входа.
+ * Также обновляет данные сессии из БД, если пользователь авторизован.
+ */
 function requireLogin() {
     if (!isset($_SESSION['user_id'])) {
         header("Location: " . getBaseUrl() . "/login/index.php");
         exit;
+    }
+
+    // Обновляем данные сессии из БД, чтобы они всегда были актуальны
+    global $pdo;
+    if (isset($pdo) && $_SESSION['user_id']) {
+        $stmt = $pdo->prepare("SELECT role_id, location_id FROM user_ WHERE id_user = ?");
+        $stmt->execute([$_SESSION['user_id']]);
+        $user = $stmt->fetch();
+        if ($user) {
+            $_SESSION['role_id'] = (int)$user['role_id'];
+            $_SESSION['location_id'] = !empty($user['location_id']) ? (int)$user['location_id'] : null;
+        }
     }
 }
 
@@ -41,6 +57,10 @@ function getBaseUrl() {
 
 function getUserId() {
     return $_SESSION['user_id'] ?? null;
+}
+
+function getUserLocationId() {
+    return $_SESSION['location_id'] ?? null;
 }
 
 function getRoleId() {
