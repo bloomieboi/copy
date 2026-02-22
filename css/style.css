@@ -150,6 +150,11 @@ header h1 a {
     background-color: #5c636a;
     color: #fff;
 }
+.btn-secondary:hover[href] { /* Применяем ховер только если это ссылка */
+    background-color: #5c636a;
+    color: #fff;
+}
+
 
 .btn-success {
     background-color: var(--cp-success);

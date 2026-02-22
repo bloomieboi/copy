@@ -23,6 +23,9 @@ if ($serviceId > 0) {
     } elseif (!$service['is_active']) {
         // Альтернативный поток: Услуга временно недоступна
         $error = 'Услуга временно недоступна';
+    } elseif ($service['is_offline']) {
+        // Альтернативный поток: Услуга только оффлайн
+        $error = 'Данная услуга доступна для заказа только в наших копицентрах. Онлайн-заказ невозможен.';
     }
 } else {
     // Поддержка старого формата для обратной совместимости
@@ -35,7 +38,8 @@ if ($serviceId > 0) {
             'service_name' => $serviceName,
             'description' => '',
             'base_price' => $basePrice,
-            'is_active' => 1
+            'is_active' => 1,
+            'is_offline' => 0
         ];
     } else {
         $error = 'Услуга не выбрана';
@@ -211,6 +215,9 @@ require_once __DIR__ . '/../function/layout_start.php';
                         <?php if (!empty($service['description'])): ?>
                             <p><small><?= htmlspecialchars($service['description']) ?></small></p>
                         <?php endif; ?>
+                        <p class="form-hint" style="margin-top: 5px;">
+                            <i class="bi bi-info-circle"></i> Эту услугу также можно заказать лично в любом из наших копицентров.
+                        </p>
                     </div>
                     
                     <div class="form-group">

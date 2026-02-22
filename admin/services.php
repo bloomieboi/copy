@@ -26,16 +26,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && $tableExists) {
     $basePrice = floatval($_POST['base_price']);
     $locationId = $_POST['location_id'] ? intval($_POST['location_id']) : null;
     $isActive = isset($_POST['is_active']) ? 1 : 0;
+    $isOffline = isset($_POST['is_offline']) ? 1 : 0;
     
     if ($serviceName && $basePrice > 0) {
         try {
             if ($serviceId) {
-                $stmt = $pdo->prepare("UPDATE services SET service_name = ?, description = ?, base_price = ?, location_id = ?, is_active = ? WHERE service_id = ?");
-                $stmt->execute([$serviceName, $description, $basePrice, $locationId, $isActive, $serviceId]);
+                $stmt = $pdo->prepare("UPDATE services SET service_name = ?, description = ?, base_price = ?, location_id = ?, is_active = ?, is_offline = ? WHERE service_id = ?");
+                $stmt->execute([$serviceName, $description, $basePrice, $locationId, $isActive, $isOffline, $serviceId]);
                 $success = 'Услуга обновлена';
             } else {
-                $stmt = $pdo->prepare("INSERT INTO services (service_name, description, base_price, location_id, is_active) VALUES (?, ?, ?, ?, ?)");
-                $stmt->execute([$serviceName, $description, $basePrice, $locationId, $isActive]);
+                $stmt = $pdo->prepare("INSERT INTO services (service_name, description, base_price, location_id, is_active, is_offline) VALUES (?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$serviceName, $description, $basePrice, $locationId, $isActive, $isOffline]);
                 $success = 'Услуга создана';
             }
         } catch (PDOException $e) {
@@ -159,6 +160,13 @@ require_once __DIR__ . '/../function/layout_start.php';
                     </label>
                 </div>
                 
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" name="is_offline" <?= ($editService['is_offline'] ?? false) ? 'checked' : '' ?>>
+                        Оффлайн услуга (заказ только в копицентре)
+                    </label>
+                </div>
+                
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary"><?= $editService ? 'Сохранить' : 'Создать' ?></button>
                     <?php if ($editService): ?>
@@ -183,6 +191,7 @@ require_once __DIR__ . '/../function/layout_start.php';
                             <th>Цена</th>
                             <th>Локация</th>
                             <th>Статус</th>
+                            <th>Тип заказа</th>
                             <th>Действия</th>
                         </tr>
                     </thead>
@@ -194,7 +203,12 @@ require_once __DIR__ . '/../function/layout_start.php';
                                 <td><?= htmlspecialchars(mb_substr($service['description'] ?? '', 0, 50)) ?><?= mb_strlen($service['description'] ?? '') > 50 ? '...' : '' ?></td>
                                 <td><?= formatPrice($service['base_price']) ?></td>
                                 <td><?= htmlspecialchars($service['location_name'] ?? 'Все') ?></td>
-                                <td><span class="status-badge <?= $service['is_active'] ? 'status-active' : 'status-inactive' ?>"><?= $service['is_active'] ? 'Активна' : 'Неактивна' ?></span></td>
+                                <td>
+                                    <span class="status-badge <?= $service['is_active'] ? 'status-active' : 'status-inactive' ?>"><?= $service['is_active'] ? 'Активна' : 'Неактивна' ?></span>
+                                </td>
+                                <td>
+                                    <?= $service['is_offline'] ? '<span class="badge bg-secondary">Оффлайн</span>' : '<span class="badge bg-success">Онлайн</span>' ?>
+                                </td>
                                 <td>
                                     <a href="services.php?edit=<?= $service['service_id'] ?>" class="btn btn-sm btn-primary">Редактировать</a>
                                     <?php if ($service['is_active']): ?>
