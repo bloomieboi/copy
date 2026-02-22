@@ -146,9 +146,9 @@ header h1 a {
 .btn-secondary {
     background-color: var(--cp-secondary);
 }
-.btn-secondary:hover {
-    background-color: #5c636a;
-    color: #fff;
+.btn-secondary:hover:not([href]) { /* Отключаем ховер для кнопок-заглушек */
+    transform: none;
+    box-shadow: none;
 }
 .btn-secondary:hover[href] { /* Применяем ховер только если это ссылка */
     background-color: #5c636a;
