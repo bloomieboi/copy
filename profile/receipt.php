@@ -37,8 +37,9 @@ if (!in_array((int)$order['status_id'], [2, 6], true)) {
     exit;
 }
 
-$stmt = $pdo->prepare("SELECT a.address_name FROM order_address oa 
-                       JOIN address a ON oa.address_id = a.address_id 
+$stmt = $pdo->prepare("SELECT CONCAT(l.location_name, ' - ', l.address) as address_name
+                       FROM order_address oa
+                       JOIN locations l ON oa.location_id = l.location_id
                        WHERE oa.order_id = ?");
 $stmt->execute([$orderId]);
 $address = $stmt->fetch();
