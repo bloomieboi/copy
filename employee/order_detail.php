@@ -105,9 +105,11 @@ if (!$order) {
     exit;
 }
 
-// Проверяем, что заказ относится к локации сотрудника
+// Проверяем, что заказ относится к локации сотрудника,
+// ИЛИ текущий пользователь уже является исполнителем этого заказа.
 $employeeLocationId = getUserLocationId();
-if ($employeeLocationId) {
+$isExecutor = ($order['executor_id'] && (int)$order['executor_id'] === (int)$_SESSION['user_id']);
+if ($employeeLocationId && !$isExecutor) {
     $stmt = $pdo->prepare("SELECT COUNT(*) FROM order_address WHERE order_id = ? AND location_id = ?");
     $stmt->execute([$orderId, $employeeLocationId]);
     if ($stmt->fetchColumn() == 0) {
@@ -119,7 +121,6 @@ if ($employeeLocationId) {
 
 
 // Проверяем, является ли текущий сотрудник исполнителем
-$isExecutor = ($order['executor_id'] && (int)$order['executor_id'] === (int)$_SESSION['user_id']);
 $canTakeOrder = ((int)$order['status_id'] === 2 && !$order['executor_id']);
 
 // Получаем адрес заказа (точку обслуживания)
