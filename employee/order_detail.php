@@ -108,7 +108,7 @@ if (!$order) {
 // Проверяем, что заказ относится к локации сотрудника
 $employeeLocationId = getUserLocationId();
 if ($employeeLocationId) {
-    $stmt = $pdo->prepare("SELECT COUNT(*) FROM order_address WHERE order_id = ? AND address_id = ?");
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM order_address WHERE order_id = ? AND location_id = ?");
     $stmt->execute([$orderId, $employeeLocationId]);
     if ($stmt->fetchColumn() == 0) {
         // Заказ не принадлежит этому копицентру, нет доступа
@@ -125,7 +125,7 @@ $canTakeOrder = ((int)$order['status_id'] === 2 && !$order['executor_id']);
 // Получаем адрес заказа (точку обслуживания)
 $stmt = $pdo->prepare("SELECT CONCAT(l.location_name, ' - ', l.address) as address_name 
                        FROM order_address oa 
-                       JOIN locations l ON oa.address_id = l.location_id 
+                       JOIN locations l ON oa.location_id = l.location_id 
                        WHERE oa.order_id = ?");
 $stmt->execute([$orderId]);
 $address = $stmt->fetch();

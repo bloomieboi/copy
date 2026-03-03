@@ -21,11 +21,11 @@ if ($employeeLocationId) {
     $stmt = $pdo->prepare("SELECT o.*, s.status_name, s.status_id, u.login as client_login 
                                      FROM order_ o 
                                      JOIN status s ON o.status_id = s.status_id 
-                                     JOIN user_ u ON o.user_id = u.id_user
-                                     JOIN order_address oa ON o.order_id = oa.order_id
-                                     WHERE o.status_id = 6 AND oa.location_id = ?
+                                     JOIN user_ u ON o.user_id = u.id_user                                     
+                                     WHERE o.status_id = 6 AND o.executor_id = ?
                                      ORDER BY o.created_date ASC");
-    $stmt->execute([$employeeLocationId]);
+    // Показываем заказы, которые В РАБОТЕ именно у ЭТОГО сотрудника
+    $stmt->execute([$_SESSION['user_id']]);
     $ordersInProgress = $stmt->fetchAll();
 
     // Открытые заявки (ожидают обработки: в обработке, назначен — status_id 1, 2), отсортированы по дате поступления
