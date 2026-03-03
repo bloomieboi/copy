@@ -33,10 +33,10 @@ if (in_array((int)$order['status_id'], $archiveStatusIds, true)) {
 $statuses = $pdo->query("SELECT * FROM status ORDER BY status_id")->fetchAll();
 
 // Получаем точки обслуживания (адреса)
-$addresses = $pdo->query("SELECT location_id as address_id, CONCAT(location_name, ' - ', address) as address_name FROM locations WHERE is_active = 1 ORDER BY location_name")->fetchAll();
+$locations = $pdo->query("SELECT location_id, CONCAT(location_name, ' - ', address) as address_name FROM locations WHERE is_active = 1 ORDER BY location_name")->fetchAll();
 
 // Получаем текущий адрес заказа
-$stmt = $pdo->prepare("SELECT address_id FROM order_address WHERE order_id = ?");
+$stmt = $pdo->prepare("SELECT location_id FROM order_address WHERE order_id = ?");
 $stmt->execute([$orderId]);
 $currentAddress = $stmt->fetch();
 
@@ -47,21 +47,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $statusId = intval($_POST['status_id']);
     $serviceList = trim($_POST['service_list']);
     $price = floatval($_POST['price']);
-    $addressId = $_POST['address_id'] ? intval($_POST['address_id']) : null;
+    $locationId = $_POST['location_id'] ? intval($_POST['location_id']) : null;
     
     try {
         $stmt = $pdo->prepare("UPDATE order_ SET status_id = ?, service_list = ?, price = ? WHERE order_id = ?");
         $stmt->execute([$statusId, $serviceList, $price, $orderId]);
         
         // Обновляем адрес
-        if ($addressId) {
+        if ($locationId) {
             // Удаляем старую связь
             $stmt = $pdo->prepare("DELETE FROM order_address WHERE order_id = ?");
             $stmt->execute([$orderId]);
             
             // Создаем новую связь
-            $stmt = $pdo->prepare("INSERT INTO order_address (order_id, address_id) VALUES (?, ?)");
-            $stmt->execute([$orderId, $addressId]);
+            $stmt = $pdo->prepare("INSERT INTO order_address (order_id, location_id) VALUES (?, ?)");
+            $stmt->execute([$orderId, $locationId]);
         } else {
             // Удаляем связь с адресом
             $stmt = $pdo->prepare("DELETE FROM order_address WHERE order_id = ?");
