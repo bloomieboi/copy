@@ -143,7 +143,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
             $orderId = $pdo->lastInsertId();
             addOrderLog($orderId, $_SESSION['user_id'], 'order_created', 'Клиент создал заказ');
 
-            $stmt = $pdo->prepare("INSERT INTO order_address (order_id, address_id) VALUES (?, ?)");
+            $stmt = $pdo->prepare("INSERT INTO order_address (order_id, location_id) VALUES (?, ?)");
             $stmt->execute([$orderId, $addressId]);
 
             if ($clientComment !== '') {
