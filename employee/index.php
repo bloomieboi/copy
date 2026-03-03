@@ -23,7 +23,7 @@ if ($employeeLocationId) {
                                      JOIN status s ON o.status_id = s.status_id 
                                      JOIN user_ u ON o.user_id = u.id_user
                                      JOIN order_address oa ON o.order_id = oa.order_id
-                                     WHERE o.status_id = 6 AND oa.address_id = ?
+                                     WHERE o.status_id = 6 AND oa.location_id = ?
                                      ORDER BY o.created_date ASC");
     $stmt->execute([$employeeLocationId]);
     $ordersInProgress = $stmt->fetchAll();
@@ -34,7 +34,7 @@ if ($employeeLocationId) {
                                JOIN status s ON o.status_id = s.status_id 
                                JOIN user_ u ON o.user_id = u.id_user
                                JOIN order_address oa ON o.order_id = oa.order_id
-                               WHERE o.status_id IN (1, 2) AND oa.address_id = ?
+                               WHERE o.status_id IN (1, 2) AND oa.location_id = ?
                                ORDER BY o.created_date ASC");
     $stmt->execute([$employeeLocationId]);
     $ordersOpen = $stmt->fetchAll();
