@@ -55,7 +55,7 @@ if ($isEmployee && getUserLocationId()) {
     }
 }
 
-$addresses = $pdo->query("SELECT location_id as address_id, CONCAT(location_name, ' - ', address) as address_name FROM locations WHERE is_active = 1 ORDER BY location_name")->fetchAll();
+$locations = $pdo->query("SELECT location_id, CONCAT(location_name, ' - ', address) as address_name FROM locations WHERE is_active = 1 ORDER BY location_name")->fetchAll();
 
 // Скидочная карта текущего пользователя (одна, уникальная)
 $discountCard = null;
@@ -84,7 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
     $serviceList       = trim($_POST['service_list'] ?? '');
     $basePrice         = floatval($_POST['base_price'] ?? 0);
     $quantity          = intval($_POST['quantity'] ?? 0);
-    $addressId         = intval($_POST['address_id'] ?? 0);
+    $locationId        = intval($_POST['location_id'] ?? 0);
     $useBonuses        = intval($_POST['use_bonuses'] ?? 0);
     $clientComment     = trim($_POST['client_comment'] ?? '');
     if ($useBonuses < 0) $useBonuses = 0;
@@ -113,7 +113,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
         $error = 'Количество не может превышать ' . number_format($maxQuantity, 0, '', ' ') . ' единиц.';
     }
 
-    if (!$error && $addressId <= 0) {
+    if (!$error && $locationId <= 0) {
         $error = 'Необходимо выбрать точку обслуживания.';
     }
 
@@ -144,7 +144,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
             addOrderLog($orderId, $_SESSION['user_id'], 'order_created', 'Клиент создал заказ');
 
             $stmt = $pdo->prepare("INSERT INTO order_address (order_id, location_id) VALUES (?, ?)");
-            $stmt->execute([$orderId, $addressId]);
+            $stmt->execute([$orderId, $locationId]);
 
             if ($clientComment !== '') {
                 addOrderLog($orderId, $_SESSION['user_id'], 'client_comment', $clientComment);
@@ -204,20 +204,20 @@ require_once __DIR__ . '/../function/layout_start.php';
                         <small class="form-text text-muted">Цена за единицу: <?= formatPrice($service['base_price']) ?></small>
                     </div>
 
-                    <?php if (!empty($addresses)): ?>
+                    <?php if (!empty($locations)): ?>
                     <div class="form-group">
-                        <label for="address_id">Точка обслуживания: <span class="text-danger">*</span></label>                        
+                        <label for="location_id">Точка обслуживания: <span class="text-danger">*</span></label>                        
                         <?php if ($isEmployee && $employeeLocationId): ?>
-                            <input type="hidden" name="address_id" value="<?= $employeeLocationId ?>">
+                            <input type="hidden" name="location_id" value="<?= $employeeLocationId ?>">
                             <p class="form-control-static" style="padding-top: 7px;">
                                 <strong><?= htmlspecialchars($employeeLocationName) ?></strong><br>
                                 <small class="form-text text-muted">(Вы закреплены за этим копицентром, поэтому адрес выбран автоматически)</small>
                             </p>
                         <?php else: ?>
-                            <select name="address_id" id="address_id" required>
+                            <select name="location_id" id="location_id" required>
                                 <option value="">Выберите точку обслуживания</option>
-                                <?php foreach ($addresses as $addr): ?>
-                                    <option value="<?= $addr['address_id'] ?>"><?= htmlspecialchars($addr['address_name']) ?></option>
+                                <?php foreach ($locations as $loc): ?>
+                                    <option value="<?= $loc['location_id'] ?>"><?= htmlspecialchars($loc['address_name']) ?></option>
                                 <?php endforeach; ?>
                             </select>
                         <?php endif; ?>

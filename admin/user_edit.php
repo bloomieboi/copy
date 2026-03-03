@@ -219,7 +219,7 @@ require_once __DIR__ . '/../function/layout_start.php';
             <div class="form-group" x-show="selectedRole === 2" x-transition>
                 <label for="location_id">Копицентр (адрес прикрепления):</label>
                 <select name="location_id" id="location_id">
-                    <option value="">Не привязан</option>
+                    <option value="0">Не привязан</option>
                     <?php foreach ($locations as $location): ?>
                         <option value="<?= (int)$location['location_id'] ?>"
                             <?= (int)($user['location_id'] ?? 0) === (int)$location['location_id'] ? 'selected' : '' ?>>
