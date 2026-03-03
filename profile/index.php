@@ -56,7 +56,7 @@ $orderAddresses = [];
 foreach ($orders as $order) {
     $stmt = $pdo->prepare("SELECT CONCAT(l.location_name, ' - ', l.address) as address_name 
                           FROM order_address oa 
-                          JOIN locations l ON oa.address_id = l.location_id 
+                          JOIN locations l ON oa.location_id = l.location_id 
                           WHERE oa.order_id = ?");
     $stmt->execute([$order['order_id']]);
     $addr = $stmt->fetch();
