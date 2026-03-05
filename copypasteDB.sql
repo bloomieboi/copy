@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Хост: MySQL-8.4:3306
--- Время создания: Фев 26 2026 г., 19:29
+-- Время создания: Мар 04 2026 г., 22:31
 -- Версия сервера: 8.4.6
 -- Версия PHP: 8.4.13
 
@@ -20,37 +20,6 @@ SET time_zone = "+00:00";
 --
 -- База данных: `copypasteDB`
 --
-
--- --------------------------------------------------------
-
---
--- Дублирующая структура для представления `address`
--- (См. Ниже фактическое представление)
---
-CREATE TABLE `address` (
-`address_id` int
-,`address_name` varchar(255)
-);
-
--- --------------------------------------------------------
-
---
--- Структура таблицы `address_deprecated`
---
-
-CREATE TABLE `address_deprecated` (
-  `address_id` int NOT NULL,
-  `address_name` varchar(255) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
---
--- Дамп данных таблицы `address_deprecated`
---
-
-INSERT INTO `address_deprecated` (`address_id`, `address_name`) VALUES
-(1, 'г. Екатеринбург, ул. Широкореченская 43'),
-(3, 'г. Москва, ул. Гагарина, д. 5'),
-(2, 'г. Москва, ул. Пушкина, д. 25');
 
 -- --------------------------------------------------------
 
@@ -113,7 +82,8 @@ INSERT INTO `locations` (`location_id`, `location_name`, `address`, `phone`, `is
 (1, 'Копицентр на Ленина', 'г. Москва, ул. Ленина, д. 10', '+7 (495) 123-45-67', 1, '2026-02-09 16:13:52', NULL),
 (2, 'Копицентр на Пушкина', 'г. Москва, ул. Пушкина, д. 25', '+7 (495) 234-56-78', 1, '2026-02-09 16:13:52', NULL),
 (3, 'Копицентр на Гагарина', 'г. Москва, ул. Гагарина, д. 5', '+7 (495) 345-67-89', 1, '2026-02-09 16:13:52', NULL),
-(4, 'Копицентр на Широкой', 'г. Екатеринбург, ул. Широкореченская 43', '+7 (922)-123-34-56', 1, '2026-02-11 08:46:23', '');
+(4, 'Копицентр на Широкой', 'г. Екатеринбург, ул. Широкореченская 43', '+7 (922)-123-34-56', 1, '2026-02-11 08:46:23', ''),
+(5, 'Копицентр Там', 'ул. Пушкина', '', 1, '2026-03-03 19:16:09', '');
 
 -- --------------------------------------------------------
 
@@ -179,7 +149,10 @@ INSERT INTO `order_` (`order_id`, `service_list`, `price`, `status_id`, `user_id
 (14, 'Печать документов (A4) (количество: 8)', 80.00, 1, 4, NULL, '2026-02-05 04:04:57'),
 (15, 'Печать документов (A4) (количество: 6)', 60.00, 3, 3, NULL, '2026-02-05 04:05:37'),
 (16, 'Печать на кружках (количество: 7)', 1488.00, 5, 5, NULL, '2026-02-10 03:39:46'),
-(18, 'Печать документов (A3) (количество: 1)', 20.00, 1, 4, NULL, '2026-02-22 11:15:27');
+(18, 'Печать документов (A3) (количество: 1)', 20.00, 1, 4, NULL, '2026-02-22 11:15:27'),
+(19, 'Ламинирование (количество: 1)', 50.00, 1, 5, NULL, '2026-03-03 18:29:51'),
+(20, 'Ламинирование (количество: 1)', 50.00, 1, 5, NULL, '2026-03-03 18:31:25'),
+(21, 'Ламинирование (количество: 1)', 50.00, 6, 5, NULL, '2026-03-03 18:34:19');
 
 -- --------------------------------------------------------
 
@@ -190,7 +163,6 @@ INSERT INTO `order_` (`order_id`, `service_list`, `price`, `status_id`, `user_id
 CREATE TABLE `order_address` (
   `order_address_id` int NOT NULL,
   `order_id` int NOT NULL,
-  `address_id` int NOT NULL,
   `location_id` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
@@ -198,9 +170,10 @@ CREATE TABLE `order_address` (
 -- Дамп данных таблицы `order_address`
 --
 
-INSERT INTO `order_address` (`order_address_id`, `order_id`, `address_id`, `location_id`) VALUES
-(3, 16, 1, 4),
-(5, 18, 3, NULL);
+INSERT INTO `order_address` (`order_address_id`, `order_id`, `location_id`) VALUES
+(3, 16, 4),
+(5, 18, NULL),
+(7, 21, 4);
 
 -- --------------------------------------------------------
 
@@ -298,7 +271,11 @@ INSERT INTO `order_log` (`log_id`, `order_id`, `user_id`, `action_type`, `action
 (51, 3, 4, 'order_taken', 'Сотрудник взял заказ в работу', '2026-02-11 23:20:04'),
 (52, 3, 4, 'message_sent', 'Сотрудник отправил сообщение клиенту', '2026-02-11 23:25:43'),
 (53, 5, 4, 'order_taken', 'Сотрудник взял заказ в работу', '2026-02-11 23:26:22'),
-(54, 18, 4, 'order_created', 'Клиент создал заказ', '2026-02-22 11:15:27');
+(54, 18, 4, 'order_created', 'Клиент создал заказ', '2026-02-22 11:15:27'),
+(55, 19, 5, 'order_created', 'Клиент создал заказ', '2026-03-03 18:29:51'),
+(56, 20, 5, 'order_created', 'Клиент создал заказ', '2026-03-03 18:31:25'),
+(57, 21, 5, 'order_created', 'Клиент создал заказ', '2026-03-03 18:34:19'),
+(58, 21, 5, 'payment_completed', 'Клиент оплатил заказ по карте в приложении', '2026-03-03 18:53:02');
 
 -- --------------------------------------------------------
 
@@ -468,13 +445,6 @@ CREATE TABLE `user_discount_card` (
 --
 
 --
--- Индексы таблицы `address_deprecated`
---
-ALTER TABLE `address_deprecated`
-  ADD PRIMARY KEY (`address_id`),
-  ADD UNIQUE KEY `address_name` (`address_name`);
-
---
 -- Индексы таблицы `admin_request`
 --
 ALTER TABLE `admin_request`
@@ -519,8 +489,7 @@ ALTER TABLE `order_`
 --
 ALTER TABLE `order_address`
   ADD PRIMARY KEY (`order_address_id`),
-  ADD UNIQUE KEY `unique_order_address` (`order_id`,`address_id`),
-  ADD KEY `address_id` (`address_id`),
+  ADD UNIQUE KEY `unique_order_address` (`order_id`),
   ADD KEY `idx_location_id` (`location_id`);
 
 --
@@ -608,12 +577,6 @@ ALTER TABLE `user_discount_card`
 --
 
 --
--- AUTO_INCREMENT для таблицы `address_deprecated`
---
-ALTER TABLE `address_deprecated`
-  MODIFY `address_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
-
---
 -- AUTO_INCREMENT для таблицы `admin_request`
 --
 ALTER TABLE `admin_request`
@@ -629,7 +592,7 @@ ALTER TABLE `discount_card`
 -- AUTO_INCREMENT для таблицы `locations`
 --
 ALTER TABLE `locations`
-  MODIFY `location_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `location_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT для таблицы `message`
@@ -647,7 +610,7 @@ ALTER TABLE `order_`
 -- AUTO_INCREMENT для таблицы `order_address`
 --
 ALTER TABLE `order_address`
-  MODIFY `order_address_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `order_address_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT для таблицы `order_file`
@@ -659,7 +622,7 @@ ALTER TABLE `order_file`
 -- AUTO_INCREMENT для таблицы `order_log`
 --
 ALTER TABLE `order_log`
-  MODIFY `log_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=55;
+  MODIFY `log_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=59;
 
 --
 -- AUTO_INCREMENT для таблицы `payment`
@@ -709,15 +672,6 @@ ALTER TABLE `user_`
 ALTER TABLE `user_discount_card`
   MODIFY `user_discount_id` int NOT NULL AUTO_INCREMENT;
 
--- --------------------------------------------------------
-
---
--- Структура для представления `address`
---
-DROP TABLE IF EXISTS `address`;
-
-CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `address`  AS SELECT `locations`.`location_id` AS `address_id`, `locations`.`location_name` AS `address_name` FROM `locations` WHERE (`locations`.`is_active` = 1) ;
-
 --
 -- Ограничения внешнего ключа сохраненных таблиц
 --
@@ -755,8 +709,8 @@ ALTER TABLE `order_`
 -- Ограничения внешнего ключа таблицы `order_address`
 --
 ALTER TABLE `order_address`
-  ADD CONSTRAINT `order_address_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `order_` (`order_id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `order_address_ibfk_2` FOREIGN KEY (`address_id`) REFERENCES `address_deprecated` (`address_id`) ON DELETE CASCADE;
+  ADD CONSTRAINT `fk_order_address_location` FOREIGN KEY (`location_id`) REFERENCES `locations` (`location_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `order_address_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `order_` (`order_id`) ON DELETE CASCADE;
 
 --
 -- Ограничения внешнего ключа таблицы `order_file`
