@@ -64,6 +64,9 @@ require_once __DIR__ . '/../function/layout_start.php';
                             <div class="order-footer">
                                 <a href="order_detail.php?id=<?= $order['order_id'] ?>" class="btn btn-sm btn-primary">Подробнее</a>
                                 <a href="chat.php?order_id=<?= $order['order_id'] ?>" class="btn btn-sm btn-secondary">Чат</a>
+                                <?php if ((int)$order['status_id'] === 1 && (int)$order['user_id'] === (int)$_SESSION['user_id']): ?>
+                                    <a href="../profile/payment.php?order_id=<?= $order['order_id'] ?>" class="btn btn-sm btn-warning">Оплатить</a>
+                                <?php endif; ?>
                             </div>
                         </div>
                     <?php endforeach; ?>
@@ -71,4 +74,3 @@ require_once __DIR__ . '/../function/layout_start.php';
             <?php endif; ?>
         </section>
 <?php require_once __DIR__ . '/../function/layout_end.php'; ?>
-

@@ -16,7 +16,10 @@ $archiveStatusIds = [3, 5]; // Завершен, Отменен — архивн
 $where = [];
 $params = [];
 
-if ($statusFilter === 'archive' && !empty($archiveStatusIds)) {
+if ($statusFilter === 'my') {
+    $where[] = "o.user_id = ?";
+    $params[] = $_SESSION['user_id'];
+} elseif ($statusFilter === 'archive' && !empty($archiveStatusIds)) {
     $placeholders = implode(',', array_fill(0, count($archiveStatusIds), '?'));
     $where[] = "o.status_id IN ($placeholders)";
     $params = array_merge($params, $archiveStatusIds);
@@ -65,6 +68,7 @@ require_once __DIR__ . '/../function/layout_start.php';
         <div class="filters">
             <a href="orders.php" class="btn btn-sm <?= ($statusFilter === null || $statusFilter === '') ? 'btn-primary' : 'btn-secondary' ?>">Все</a>
             <a href="orders.php?status=archive" class="btn btn-sm <?= $statusFilter === 'archive' ? 'btn-primary' : 'btn-secondary' ?>">Архивные</a>
+            <a href="orders.php?status=my" class="btn btn-sm <?= $statusFilter === 'my' ? 'btn-primary' : 'btn-secondary' ?>">Мои заказы</a>
             <?php foreach($statuses as $status): ?>
                 <a href="orders.php?status=<?= $status['status_id'] ?>" class="btn btn-sm <?= $statusFilter == $status['status_id'] ? 'btn-primary' : 'btn-secondary' ?>">
                     <?= htmlspecialchars($status['status_name']) ?>
@@ -98,6 +102,9 @@ require_once __DIR__ . '/../function/layout_start.php';
                         <td>
                             <a href="order_detail.php?id=<?= $order['order_id'] ?>" class="btn btn-sm btn-primary">Подробнее</a>
                             <a href="edit_order.php?id=<?= $order['order_id'] ?>" class="btn btn-sm btn-secondary">Редактировать</a>
+                            <?php if ((int)$order['status_id'] === 1 && (int)$order['user_id'] === (int)$_SESSION['user_id']): ?>
+                                <a href="../profile/payment.php?order_id=<?= $order['order_id'] ?>" class="btn btn-sm btn-warning">Оплатить</a>
+                            <?php endif; ?>
                         </td>
                     </tr>
                 <?php endforeach; ?>

@@ -196,6 +196,18 @@ require_once __DIR__ . '/../function/layout_start.php';
             </div>
         <?php endif; ?>
         
+        <?php if ($isOwner && (int)$order['status_id'] === 1): ?>
+            <div class="alert alert-warning d-flex align-items-center justify-content-between" role="alert">
+                <div>
+                    <i class="bi bi-credit-card-2-back-fill me-2"></i>
+                    <strong>Ваш личный заказ ожидает оплаты.</strong>
+                </div>
+                <a href="../profile/payment.php?order_id=<?= $orderId ?>" class="btn btn-warning">
+                    Оплатить сейчас
+                </a>
+            </div>
+        <?php endif; ?>
+        
         <?php if ($canTakeOrder): ?>
             <div class="alert alert-info" role="alert">
                 <i class="bi bi-info-circle me-2"></i>
