@@ -74,21 +74,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['confirm_payment'])) {
             $error = 'Оплата не прошла. Попробуйте ещё раз или выберите другой способ оплаты.';
             $step = 'card';
         } else {
-            // 7) Платёжный шлюз подтверждает успешность платежа
-            // 8) Система меняет статус заказа на «Оплачен», фиксирует это в логе,
-            //    и сразу переводит его в статус «В работе» (status_id = 6)
-            $stmt = $pdo->prepare("UPDATE order_ SET status_id = 2 WHERE order_id = ? AND user_id = ? AND status_id = 1");
-            $stmt->execute([$orderId, $_SESSION['user_id']]);
-            addOrderLog($orderId, $_SESSION['user_id'], 'payment_completed', 'Клиент оплатил заказ по карте в приложении');
-
-            // Немедленный переход в статус «В работе» (id = 6) после оплаты
+            // Платёжный шлюз подтверждает успешность платежа.
+            // Сразу переводим заказ в статус «В работе» (status_id = 6), так как оплата прошла.
+            
             if (getRoleId() >= 2) {
-                // Если платит сотрудник или админ, он сам становится исполнителем (самообслуживание)
-                $stmt = $pdo->prepare("UPDATE order_ SET status_id = 6, executor_id = ? WHERE order_id = ? AND user_id = ? AND status_id = 2");
+                // Если платит сотрудник или админ, он сам становится исполнителем (самообслуживание) сразу при оплате
+                $stmt = $pdo->prepare("UPDATE order_ SET status_id = 6, executor_id = ? WHERE order_id = ? AND user_id = ? AND status_id = 1");
                 $stmt->execute([$_SESSION['user_id'], $orderId, $_SESSION['user_id']]);
+                addOrderLog($orderId, $_SESSION['user_id'], 'payment_completed', 'Сотрудник оплатил свой заказ и автоматически назначен исполнителем');
             } else {
-                $stmt = $pdo->prepare("UPDATE order_ SET status_id = 6 WHERE order_id = ? AND user_id = ? AND status_id = 2");
+                $stmt = $pdo->prepare("UPDATE order_ SET status_id = 6 WHERE order_id = ? AND user_id = ? AND status_id = 1");
                 $stmt->execute([$orderId, $_SESSION['user_id']]);
+                addOrderLog($orderId, $_SESSION['user_id'], 'payment_completed', 'Клиент оплатил заказ, статус изменен на «В работе»');
             }
 
             header("Location: receipt.php?order_id=" . $orderId);

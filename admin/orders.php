@@ -10,13 +10,13 @@ session_start();
 requireRole(3);
 
 $statusFilter = $_GET['status'] ?? null;
-$archiveStatusIds = [4, 5, 6]; // Готов, Выполнен, Отменен — архивные статусы
+$archiveStatusIds = [3, 5]; // Завершен, Отменен — архивные статусы
 
 // Построение запроса: фильтр по статусу или «Архивные»
 $where = [];
 $params = [];
 
-if ($statusFilter === 'archive') {
+if ($statusFilter === 'archive' && !empty($archiveStatusIds)) {
     $placeholders = implode(',', array_fill(0, count($archiveStatusIds), '?'));
     $where[] = "o.status_id IN ($placeholders)";
     $params = array_merge($params, $archiveStatusIds);
@@ -24,6 +24,9 @@ if ($statusFilter === 'archive') {
     $where[] = "o.status_id = ?";
     $params[] = $statusFilter;
 }
+
+// Исключаем статус "Закрыт" (4) из общего списка, если он вдруг остался в БД
+$where[] = "o.status_id != 4";
 
 $whereClause = $where ? "WHERE " . implode(" AND ", $where) : "";
 $sql = "SELECT o.*, s.status_name, s.status_id, u.login as client_login 
@@ -38,7 +41,7 @@ $stmt->execute($params);
 $orders = $stmt->fetchAll();
 
 // Получаем статусы для фильтра
-$statuses = $pdo->query("SELECT * FROM status ORDER BY status_id")->fetchAll();
+$statuses = $pdo->query("SELECT * FROM status WHERE status_id != 4 ORDER BY status_id")->fetchAll();
 
 // Получаем адреса заказов (точки обслуживания)
 $orderAddresses = [];

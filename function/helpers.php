@@ -48,7 +48,8 @@ function getStatusBadgeClass($statusId) {
         1 => 'status-pending',      // В процессе оплаты
         2 => 'status-paid',          // Оплачен
         3 => 'status-completed',     // Завершен
-        5 => 'status-cancelled'      // Отменен
+        5 => 'status-cancelled',     // Отменен
+        6 => 'status-in-progress'    // В работе
     ];
     return $classes[$statusId] ?? 'status-default';
 }
