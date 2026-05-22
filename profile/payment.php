@@ -12,11 +12,6 @@ session_start();
 // Предусловия: пользователь должен быть авторизован
 requireLogin();
 
-if (!isClient()) {
-    header("Location: ../index.php");
-    exit;
-}
-
 $orderId = isset($_GET['order_id']) ? (int)$_GET['order_id'] : 0;
 if ($orderId <= 0) {
     header("Location: index.php");
@@ -87,8 +82,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['confirm_payment'])) {
             addOrderLog($orderId, $_SESSION['user_id'], 'payment_completed', 'Клиент оплатил заказ по карте в приложении');
 
             // Немедленный переход в статус «В работе» (id = 6) после оплаты
-            $stmt = $pdo->prepare("UPDATE order_ SET status_id = 6 WHERE order_id = ? AND user_id = ? AND status_id = 2");
-            $stmt->execute([$orderId, $_SESSION['user_id']]);
+            if (getRoleId() >= 2) {
+                // Если платит сотрудник или админ, он сам становится исполнителем (самообслуживание)
+                $stmt = $pdo->prepare("UPDATE order_ SET status_id = 6, executor_id = ? WHERE order_id = ? AND user_id = ? AND status_id = 2");
+                $stmt->execute([$_SESSION['user_id'], $orderId, $_SESSION['user_id']]);
+            } else {
+                $stmt = $pdo->prepare("UPDATE order_ SET status_id = 6 WHERE order_id = ? AND user_id = ? AND status_id = 2");
+                $stmt->execute([$orderId, $_SESSION['user_id']]);
+            }
 
             header("Location: receipt.php?order_id=" . $orderId);
             exit;

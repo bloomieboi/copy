@@ -14,7 +14,6 @@ require_once __DIR__ . '/function/layout_start.php';
                 Все услуги оказываются в наших офисах. При оформлении заказа вы выберете удобный для вас адрес обслуживания.
             </p>
             
-            <!-- Поиск по услугам -->
             <div class="mb-4" x-data="{ search: '' }">
                 <div class="input-group input-group-lg">
                     <span class="input-group-text">
@@ -30,12 +29,10 @@ require_once __DIR__ . '/function/layout_start.php';
                 </div>
             </div>
             <?php
-            // Услуги: из БД (таблица services), при отсутствии таблицы — встроенный список
             $services = [];
             $onlineServices = [];
             $offlineServices = [];
             try {
-                // Сортируем так, чтобы онлайн-услуги шли первыми
                 $services = $pdo->query("SELECT * FROM services ORDER BY is_offline ASC, service_name ASC")->fetchAll(PDO::FETCH_ASSOC);
                 foreach ($services as $service) {
                     if (!empty($service['is_offline'])) {
@@ -44,9 +41,7 @@ require_once __DIR__ . '/function/layout_start.php';
                         $onlineServices[] = $service;
                     }
                 }
-            } catch (PDOException $e) {
-                // Таблицы services нет — используем встроенный каталог
-                $onlineServices = [
+            } catch (PDOException $e) {                $onlineServices = [
                     ['service_id' => 0, 'service_name' => 'Печать документов (A4)', 'description' => 'Оперативная ч/б и цветная печать документов формата A4.', 'base_price' => 10, 'is_active' => 1, 'is_offline' => 0],
                     ['service_id' => 0, 'service_name' => 'Печать документов (A3)', 'description' => 'Печать документов большого формата A3.', 'base_price' => 20, 'is_active' => 1, 'is_offline' => 0],
                     ['service_id' => 0, 'service_name' => 'Печать на кружках', 'description' => 'Создание индивидуальных принтов на керамических кружках.', 'base_price' => 500, 'is_active' => 1, 'is_offline' => 0],
@@ -111,7 +106,6 @@ require_once __DIR__ . '/function/layout_start.php';
         </section>
         
         <script>
-        // Поиск по услугам
         function filterServices() {
             const search = document.querySelector('input[x-model="search"]')?.value?.toLowerCase() || '';
             const serviceItems = document.querySelectorAll('.service-item');

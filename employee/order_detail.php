@@ -107,9 +107,12 @@ if (!$order) {
 
 // Проверяем, что заказ относится к локации сотрудника,
 // ИЛИ текущий пользователь уже является исполнителем этого заказа.
+// ИЛИ текущий пользователь является заказчиком (для самообслуживания сотрудников)
 $employeeLocationId = getUserLocationId();
 $isExecutor = ($order['executor_id'] && (int)$order['executor_id'] === (int)$_SESSION['user_id']);
-if ($employeeLocationId && !$isExecutor) {
+$isOwner = ((int)$order['user_id'] === (int)$_SESSION['user_id']);
+
+if ($employeeLocationId && !$isExecutor && !$isOwner) {
     $stmt = $pdo->prepare("SELECT COUNT(*) FROM order_address WHERE order_id = ? AND location_id = ?");
     $stmt->execute([$orderId, $employeeLocationId]);
     if ($stmt->fetchColumn() == 0) {
