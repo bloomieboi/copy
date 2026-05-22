@@ -44,7 +44,7 @@ $stmt->execute($params);
 $orders = $stmt->fetchAll();
 
 // Получаем статусы для фильтра
-$statuses = $pdo->query("SELECT * FROM status WHERE status_id != 4 ORDER BY status_id")->fetchAll();
+$statuses = $pdo->query("SELECT * FROM status WHERE status_id NOT IN (4) ORDER BY status_id")->fetchAll();
 
 // Получаем адреса заказов (точки обслуживания)
 $orderAddresses = [];

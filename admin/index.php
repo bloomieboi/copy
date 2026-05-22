@@ -10,18 +10,29 @@ $stats = [
     'total_orders' => $pdo->query("SELECT COUNT(*) as count FROM order_")->fetch()['count'],
     'pending_orders' => $pdo->query("SELECT COUNT(*) as count FROM order_ WHERE status_id = 1")->fetch()['count'],
     'paid_orders' => $pdo->query("SELECT COUNT(*) as count FROM order_ WHERE status_id = 2")->fetch()['count'],
+    'in_progress_orders' => $pdo->query("SELECT COUNT(*) as count FROM order_ WHERE status_id = 6")->fetch()['count'],
     'completed_orders' => $pdo->query("SELECT COUNT(*) as count FROM order_ WHERE status_id = 3")->fetch()['count'],
     'total_clients' => $pdo->query("SELECT COUNT(*) as count FROM user_ WHERE role_id = 1")->fetch()['count'],
     'total_employees' => $pdo->query("SELECT COUNT(*) as count FROM user_ WHERE role_id = 2")->fetch()['count'],
 ];
 
-// Получаем последние заказы
+// Получаем последние общие заказы (исключая статус 4)
 $recentOrders = $pdo->query("SELECT o.*, s.status_name, s.status_id, u.login as client_login 
                              FROM order_ o 
                              JOIN status s ON o.status_id = s.status_id 
                              JOIN user_ u ON o.user_id = u.id_user
+                             WHERE o.status_id != 4
                              ORDER BY o.created_date DESC 
                              LIMIT 10")->fetchAll();
+
+// Получаем личные заказы администратора
+$stmt = $pdo->prepare("SELECT o.*, s.status_name, s.status_id 
+                       FROM order_ o 
+                       JOIN status s ON o.status_id = s.status_id 
+                       WHERE o.user_id = ? AND o.status_id != 4
+                       ORDER BY o.created_date DESC");
+$stmt->execute([$_SESSION['user_id']]);
+$myOrders = $stmt->fetchAll();
 
 $pageTitle = 'Панель администратора — КопиПейст';
 $baseUrl = '..';
@@ -41,6 +52,10 @@ require_once __DIR__ . '/../function/layout_start.php';
             <div class="stat-card">
                 <h3>Оплачено</h3>
                 <div class="stat-value"><?= $stats['paid_orders'] ?></div>
+            </div>
+            <div class="stat-card">
+                <h3>В работе</h3>
+                <div class="stat-value"><?= $stats['in_progress_orders'] ?></div>
             </div>
             <div class="stat-card">
                 <h3>Завершено</h3>
@@ -96,7 +111,42 @@ require_once __DIR__ . '/../function/layout_start.php';
                 </div>
             </div>
         </section>
-        
+
+        <section class="recent-orders">
+            <h3>Мои личные заказы</h3>
+            <?php if (empty($myOrders)): ?>
+                <p class="empty-state">У вас пока нет личных заказов. <a href="../orders/create.php">Создать заказ?</a></p>
+            <?php else: ?>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Услуга</th>
+                            <th>Статус</th>
+                            <th>Стоимость</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach($myOrders as $order): ?>
+                            <tr style="background-color: rgba(255, 193, 7, 0.05);">
+                                <td><?= $order['order_id'] ?></td>
+                                <td><?= htmlspecialchars(mb_substr($order['service_list'], 0, 50)) ?>...</td>
+                                <td><span class="status-badge <?= getStatusBadgeClass($order['status_id']) ?>"><?= htmlspecialchars($order['status_name']) ?></span></td>
+                                <td><?= formatPrice($order['price']) ?></td>
+                                <td>
+                                    <a href="order_detail.php?id=<?= $order['order_id'] ?>" class="btn btn-sm btn-primary">Подробнее</a>
+                                    <?php if ((int)$order['status_id'] === 1): ?>
+                                        <a href="../profile/payment.php?order_id=<?= $order['order_id'] ?>" class="btn btn-sm btn-warning">Оплатить</a>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
+        </section>
+
         <section class="recent-orders">
             <h3>Последние заказы</h3>
             <table class="data-table">
